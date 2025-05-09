@@ -23,7 +23,7 @@ class MeetingTaskParser:
 
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            token=token  # ✅ 로그인 없이 토큰 전달
+            token=token  # 로그인 없이 토큰 전달
         ).to(self.device) # 44issue
 
         self.tokenizer = AutoTokenizer.from_pretrained(

@@ -28,7 +28,7 @@ class WikiInput(BaseModel):
     content: str
     updated_at : str
 
-class MeetingInput(BaseModel):
+class MeetingNote(BaseModel):
     project_id: int
     content: str
     position: str
@@ -61,11 +61,12 @@ def summarize_wiki(input: WikiInput):
 
 # BE → AI 회의록 전달
 @app.post("/projects/{id}/notes")
-async def receive_meeting_note(id: int, input: MeetingInput):
+async def receive_meeting_note(id: int, input: MeetingNote):
     result = Task_Parser.summarize_and_generate_tasks(
-        meeting_note=input.meeting_note,
-        nickname=input.nickname,
-        project_id=id
+        project_id=input.project_id,
+        meeting_note=input.content,
+        nickname=input.nickname
+
     )
 
     # AI → BE 콜백 전달
