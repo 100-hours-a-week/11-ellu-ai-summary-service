@@ -148,7 +148,7 @@ class MeetingTaskParser:
                         "세부 작업 3"
                     ]
                     }}
-                    반드시 하나의 JSON 객체만 반환하고, 형식을 엄격히 지켜줘.
+                    
                     """
                 }
             ]
@@ -162,12 +162,10 @@ class MeetingTaskParser:
                     "keyword": parsed["task"],
                     "subtasks": parsed["subtasks"]
                 })
+                logger.info(f"Completed processing with {len(parsed_results)} tasks generated")
             except Exception as e:
                 logger.error(f"Failed to parse response for task '{task}': {e}")
                 logger.error(f"Response was: {response}")
-                parsed_results.append({
-                    "keyword": task,
-                    "subtasks": []
-                })
-        logger.info(f"Completed processing with {len(parsed_results)} tasks generated")
+                continue
+        
         return parsed_results
