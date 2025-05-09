@@ -12,15 +12,15 @@ class WikiSummarizer:
         embed_func=ChromaDBManager()
     ):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.token = os.getenv("HUGGINGFACE_API_KEY")  # ✅ 토큰 직접 불러오기
+        self.token = os.getenv("HUGGINGFACE_API_KEY")  # 토큰 직접 불러오기
 
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            token=self.token  # ✅ 여기 전달
+            token=self.token  # 여기 전달
         )
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
-            token=self.token  # ✅ 여기도 전달
+            token=self.token  # 여기도 전달
         )
         self.pipeline = pipeline(
             "text-generation",

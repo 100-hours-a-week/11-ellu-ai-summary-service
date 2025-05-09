@@ -28,7 +28,7 @@ class MeetingTaskParser:
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
-            token=token  # ✅ 동일하게 토큰 전달
+            token=token  # 동일하게 토큰 전달
         )
 
     def extract_row_for_nickname(self, note: str, nickname: str) -> str:
