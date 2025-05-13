@@ -40,6 +40,7 @@ class MeetingTaskParser:
         )
         logger.info("Tokenizer loaded successfully")
 
+
     def generate_response(self, chat: list) -> str:
         inputs = self.tokenizer.apply_chat_template(
             chat,
