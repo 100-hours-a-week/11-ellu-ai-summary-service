@@ -5,9 +5,10 @@ import logging
 from dotenv import load_dotenv
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from llm.wiki_retriever import retrieve_wiki_context
-# from llm.tavily_search import retrieve_web_context
+from llm.json_fixer import JsonFixer
 import torch
 
+# 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,7 @@ class MeetingTaskParser:
         )
         logger.info("Tokenizer loaded successfully")
 
+        self.json_fixer=JsonFixer()
 
     def generate_response(self, chat: list) -> str:
         inputs = self.tokenizer.apply_chat_template(
@@ -66,20 +68,17 @@ class MeetingTaskParser:
             cleaned += "}"
         return cleaned
 
-    def clean_keyword_output(self, text: str, nickname: str) -> str:
-        pattern = rf"\b{re.escape(nickname)}(의| )?"
-        return re.sub(pattern, "", text).strip()
+    def summarize_and_generate_tasks(self, meeting_note: str, project_id: int, position: str):
+        logger.info(f"Processing meeting note for project_id: {project_id}, position: {position}")
 
-    def summarize_and_generate_tasks(self, meeting_note: str, nickname: str, project_id: int, position: str):
-        logger.info(f"Processing meeting note for nickname: {nickname}, project_id: {project_id}")
-        
+        # Step 1: 포지션에 맞는 핵심 업무 요약
         system_prompt = {
             "role": "system",
             "content": (
-                f"너는 회의록에서 '{nickname}' 사용자의 오늘 할 일과 우선순위를 정확히 추출하는 전문가야. "
-                "입력된 회의록은 표 형식이 아닌 자연어 문장으로 구성되어 있어. "
-                "출력은 절대로 설명 없이, 콤마(,)로 구분된 핵심 업무 목록 한 줄로만 작성해. "
-                "사용자의 이름이나 '누구의 할 일' 같은 표현은 생략해."
+                f"너는 회의록에서 '{position}' 파트의 전체 업무 내용을 정리하고, 주요 태스크를 요약하는 전문가야. "
+                "입력된 회의록은 표 형식이 아닌 자유로운 자연어 문장으로 구성되어 있어. "
+                "출력은 절대로 설명 없이, ','로 구분된 핵심 업무 키워드 목록 한 줄만 생성해. "
+                "다른 포지션의 내용은 무시하고, '{position}' 파트의 실질적인 작업만 추출해줘."
             )
         }
 
@@ -89,11 +88,10 @@ class MeetingTaskParser:
 회의록:
 {meeting_note}
 
-'{nickname}' 사용자의 오늘 할 일과 우선순위를 요약해줘.  
-다른 사람 내용은 무시해도 돼. 만약 '{nickname}' 이 할 일이 무엇인지 모르면 내용 기반으로 오늘 할 일과 우선순위를 요약해줘  
+'{position}' 파트에서 오늘 해야 할 핵심 작업만 요약해줘.  
+다른 파트는 무시해도 돼.
 
-**출력은 오직 콤마(,)로 구분된 한 줄 요약으로만 해줘.**
-**사용자 이름이나 '누구의 할 일' 같은 표현은 절대 포함하지 마.**
+**출력은 오직 콤마(,)로 구분된 한 줄 요약만 해줘.**
 """
         }
 
@@ -101,6 +99,7 @@ class MeetingTaskParser:
         task_candidates = summary.split(',')
         logger.info(f"Extracted {len(task_candidates)} task candidates")
 
+        # Step 2: 각 업무 키워드에 대해 세부 작업 분해
         parsed_results = []
         for task in task_candidates:
             task = task.strip()
@@ -123,18 +122,12 @@ LangChain은 LLM을 기반으로 LLM, Chain 등의 모듈을 연결하여
                     "content": f"""
 Wiki Context: {wiki_context}
 
-{wiki_context}를 바탕으로 {nickname} 사용자의 {task}를 의미 있는 작업 단위로 나눠줘.
-각 작업은 반드시 2개 ~ 4개의 세부 작업(subtasks)을 포함해야 해. 
+'{position}' 포지션의 작업 '{task}'를 2~4개의 구체적인 세부 작업(subtasks)으로 나눠줘.
 
-- 이 사용자의 역할은 '{position}'이야. {position} 역할에서 일반적으로 수행하는 구현 작업 범위를 벗어나지 마.
-참고로, LangChain은 다음과 같은 시스템입니다: {langchain_definition}
-
-- subtasks는 절대 빈 배열([])이면 안 돼.  
-- "task" 항목은 반드시 입력으로 주어진 "{task}"를 그대로 사용해야 해.
-- 절대로 task 이름을 변경하거나 유사한 표현으로 바꾸면 안 돼.  
-- 출력은 절대 설명 없이, 아래와 같이 콤마로 구분된 한 줄 요약으로만 해줘.
-- subtasks는 **핵심 동사 + 명사 위주로만 간단하게 작성하고, 목적이나 설명은 빼.**
-- 출력은 반드시 하나의 작업에 대해서만 아래 JSON 형식으로 응답해야 하며, 복수 작업은 포함하지 마.
+조건:
+- "task" 항목은 반드시 "{task}"를 그대로 사용
+- "subtasks"는 동사+명사 위주 간단 표현 (예: "API 설계", "DB 스키마 작성")
+- 출력은 JSON 하나로만, 설명 없이 아래와 같이
 
 출력 예시:
 {{
@@ -153,22 +146,35 @@ Wiki Context: {wiki_context}
             logger.info(f"Raw model response: {response}")
 
             try:
+                # 1차 모델 응답 파싱 시도
                 parsed = json.loads(self.clean_json_codeblock(response))
-
-                keyword = self.clean_keyword_output(parsed["task"], nickname)
-                subtasks = [self.clean_keyword_output(st, nickname) for st in parsed.get("subtasks", [])]
-
-                subtasks_count = len(subtasks)
-                logger.info(f"Successfully parsed {subtasks_count} subtasks for task: {keyword}")
-
                 parsed_results.append({
-                    "keyword": keyword,
-                    "subtasks": subtasks
+                    "keyword": parsed["task"],
+                    "subtasks": parsed.get("subtasks", []),
+                    "position" : position
                 })
 
             except Exception as e:
-                logger.error(f"Failed to parse response for task '{task}': {e}")
-                logger.error(f"Response was: {response}")
-                continue
+                logger.error(f"[Parse Fail] task '{task}' → {e}")
+                logger.error(f"Raw response: {response}")
 
-        return {"message": "keywords_created", "detail": parsed_results}
+                try:
+                    # JSON 파서 실패 시 → JsonFixer로 보정 시도
+                    fixed_response = self.json_fixer.fix_json(response)
+                    logger.info(f"[Fix Attempted] Fixed response: {fixed_response}")
+
+                    # 고친 응답 다시 파싱
+                    parsed = json.loads(self.clean_json_codeblock(fixed_response))
+                    parsed_results.append({
+                        "keyword": parsed["task"],
+                        "subtasks": parsed.get("subtasks", [])
+                    })
+
+                except Exception as fix_err:
+                    logger.error(f"[Fix Fail] task '{task}' → {fix_err}")
+                    logger.error(f"Fixed response: {fixed_response if 'fixed_response' in locals() else 'N/A'}")
+                    continue
+
+        return {"message": "subtasks_created", "detail": parsed_results}
+
+
