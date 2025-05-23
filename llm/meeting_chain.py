@@ -20,7 +20,8 @@ class MeetingTaskParser:
         if not token:
             logger.warning("HUGGINGFACE_API_KEY not found in environment variables!")
 
-        model_name = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+        model_name = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B" 
+
         logger.info(f"Using model: {model_name}")
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -66,6 +67,7 @@ class MeetingTaskParser:
             cleaned += "}"
         return cleaned
 
+<<<<<<< Updated upstream
     def clean_keyword_output(self, text: str, nickname: str) -> str:
         pattern = rf"\b{re.escape(nickname)}(의| )?"
         return re.sub(pattern, "", text).strip()
@@ -81,48 +83,99 @@ class MeetingTaskParser:
                 "출력은 절대로 설명 없이, 콤마(,)로 구분된 핵심 업무 목록 한 줄로만 작성해. "
                 "사용자의 이름이나 '누구의 할 일' 같은 표현은 생략해."
             )
+=======
+    def summarize_and_generate_tasks(self, meeting_note: str, project_id: int, positions: list[str]):
+        logger.info(f"Processing meeting note for project_id: {project_id}, position: {positions}")
+
+        system_prompt = {
+            "role": "system",
+            "content": """
+            너는 팀 회의록에서 포지션별 할 일을 뽑아주는 전문가야.
+
+            - 포지션 정의:
+            • AI: 인공지능 개발 파트
+            • BE: 백엔드 개발 파트
+            • FE: 프론트엔드 개발 파트
+            • CL: 클라우드 개발 파트
+            • OTHER: 회사 전체 이벤트(예: 회식, 전사 공지 등)
+
+            - 회의록에 나온 문구를 그대로 키워드로 사용하고, 의역 금지야.
+
+            - 출력은 반드시 아래 JSON 템플릿 형식과 키를 **모두** 포함해야 하며, 생략 절대 금지.
+            - 각 포지션 키는 무조건 출력에 포함되어야 하며, 할 일이 없으면 빈 배열([])로 채워야 해.
+            
+            - 출력 키워드는 반드시 짧고 간결한 **명사구** 또는 **동사+명사** 형태여야 해.
+            -  "~~에서"와 같은 문장의 조사나 부사격 조사는 출력하지마.
+
+            템플릿:
+            {
+            "AI": [],
+            "BE": [],
+            "FE": [],
+            "CL": [],
+            "OTHER": []
+            }
+            """
+>>>>>>> Stashed changes
         }
 
         user_prompt = {
             "role": "user",
             "content": f"""
-회의록:
-{meeting_note}
+                회의록:
+                {meeting_note}
 
+<<<<<<< Updated upstream
 '{nickname}' 사용자의 오늘 할 일과 우선순위를 요약해줘.  
 다른 사람 내용은 무시해도 돼. 만약 '{nickname}' 이 할 일이 무엇인지 모르면 내용 기반으로 오늘 할 일과 우선순위를 요약해줘  
 
 **출력은 오직 콤마(,)로 구분된 한 줄 요약으로만 해줘.**
 **사용자 이름이나 '누구의 할 일' 같은 표현은 절대 포함하지 마.**
 """
+=======
+                포지션 리스트: {positions}
+
+                목표: 각 포지션 별로 오늘 할 일을 식별해서 위 JSON 템플릿에 맞게 작성해줘.
+            """
+>>>>>>> Stashed changes
         }
 
-        summary = self.generate_response([system_prompt, user_prompt])
-        task_candidates = summary.split(',')
-        logger.info(f"Extracted {len(task_candidates)} task candidates")
+        response = self.generate_response([system_prompt, user_prompt])
+        logger.info(f"Raw model output: {response}")
 
+<<<<<<< Updated upstream
         parsed_results = []
         for task in task_candidates:
             task = task.strip()
             if not task:
                 continue
+=======
+        try:
+            parsed = json.loads(self.clean_json_codeblock(response))
+            return {"message": "position_tasks_extracted", "results": parsed}
+        except Exception as e:
+            logger.error(f"Failed to parse JSON: {e}")
+            return {"message": "error", "error": str(e), "raw": response}
+>>>>>>> Stashed changes
 
-            logger.info(f"Processing task: {task}")
-            wiki_context = retrieve_wiki_context(task, project_id)
-            logger.info(f"Retrieved wiki for Project ID {project_id}")
+        # # Step 2: 각 업무 키워드에 대해 세부 작업 분해
+        # parsed_results = []
+        # for task in task_candidates:
+        #     task = task.strip()
+        #     if not task:
+        #         continue
 
-            langchain_definition = """
-LangChain은 LLM을 기반으로 LLM, Chain 등의 모듈을 연결하여
-사용자 질의에 대해 복합적인 처리를 수행할 수 있도록 돕는 프레임워크입니다.
-주로 체인 구성, 프롬프트 설정, 응답 처리, Tool 연동 등의 작업이 필요합니다.
-"""
+        #     logger.info(f"Processing task: {task}")
+        #     wiki_context = retrieve_wiki_context(task, project_id)
+        #     logger.info(f"Retrieved wiki for Project ID {project_id}")
 
-            task_chat = [
-                {
-                    "role": "system",
-                    "content": f"""
-Wiki Context: {wiki_context}
+        #     langchain_definition = """
+        #     LangChain은 LLM을 기반으로 LLM, Chain 등의 모듈을 연결하여
+        #     사용자 질의에 대해 복합적인 처리를 수행할 수 있도록 돕는 프레임워크입니다.
+        #     주로 체인 구성, 프롬프트 설정, 응답 처리, Tool 연동 등의 작업이 필요합니다.
+        #     """
 
+<<<<<<< Updated upstream
 {wiki_context}를 바탕으로 {nickname} 사용자의 {task}를 의미 있는 작업 단위로 나눠줘.
 각 작업은 반드시 2개 ~ 4개의 세부 작업(subtasks)을 포함해야 해. 
 
@@ -135,23 +188,35 @@ Wiki Context: {wiki_context}
 - 출력은 절대 설명 없이, 아래와 같이 콤마로 구분된 한 줄 요약으로만 해줘.
 - subtasks는 **핵심 동사 + 명사 위주로만 간단하게 작성하고, 목적이나 설명은 빼.**
 - 출력은 반드시 하나의 작업에 대해서만 아래 JSON 형식으로 응답해야 하며, 복수 작업은 포함하지 마.
+=======
+        #     task_chat = [
+        #                     {
+        #                         "role": "system",
+        #                         "content": f"""
+        #     Wiki Context: {wiki_context}
 
-출력 예시:
-{{
-"task": "{task}",
-"subtasks": [
-    "세부 작업 1",
-    "세부 작업 2",
-    "세부 작업 3"
-]
-}}
-"""
-                }
-            ]
+        #     '{position}' 포지션의 작업 '{task}'를 2~4개의 구체적인 세부 작업(subtasks)으로 나눠줘.
+>>>>>>> Stashed changes
 
-            response = self.generate_response(task_chat)
-            logger.info(f"Raw model response: {response}")
+        #     조건:
+        #     - "task" 항목은 반드시 "{task}"를 그대로 사용
+        #     - "subtasks"는 동사+명사 위주 간단 표현 (예: "API 설계", "DB 스키마 작성")
+        #     - 출력은 JSON 하나로만, 설명 없이 아래와 같이
 
+        #     출력 예시:
+        #     {{
+        #     "task": "{task}",
+        #     "subtasks": [
+        #         "세부 작업 1",
+        #         "세부 작업 2",
+        #         "세부 작업 3"
+        #     ]
+        #     }}
+        #     """
+        #         }
+        #     ]
+
+<<<<<<< Updated upstream
             try:
                 parsed = json.loads(self.clean_json_codeblock(response))
 
@@ -170,5 +235,42 @@ Wiki Context: {wiki_context}
                 logger.error(f"Failed to parse response for task '{task}': {e}")
                 logger.error(f"Response was: {response}")
                 continue
+=======
+        #     response = self.generate_response(task_chat)
+        #     logger.info(f"Raw model response: {response}")
+
+        #     try:
+        #         # 1차 모델 응답 파싱 시도
+        #         parsed = json.loads(self.clean_json_codeblock(response))
+        #         parsed_results.append({
+        #             "keyword": parsed["task"],
+        #             "subtasks": parsed.get("subtasks", []),
+        #             "position" : position
+        #         })
+
+        #     except Exception as e:
+        #         logger.error(f"[Parse Fail] task '{task}' → {e}")
+        #         logger.error(f"Raw response: {response}")
+
+        #         try:
+        #             # JSON 파서 실패 시 → JsonFixer로 보정 시도
+        #             fixed_response = self.json_fixer.fix_json(response)
+        #             logger.info(f"[Fix Attempted] Fixed response: {fixed_response}")
+
+        #             # 고친 응답 다시 파싱
+        #             parsed = json.loads(self.clean_json_codeblock(fixed_response))
+        #             parsed_results.append({
+        #                 "keyword": parsed["task"],
+        #                 "subtasks": parsed.get("subtasks", [])
+        #             })
+
+        #         except Exception as fix_err:
+        #             logger.error(f"[Fix Fail] task '{task}' → {fix_err}")
+        #             logger.error(f"Fixed response: {fixed_response if 'fixed_response' in locals() else 'N/A'}")
+        #             continue
+
+        return {"message": "subtasks_created", "detail": task_candidates}
+
+>>>>>>> Stashed changes
 
         return {"message": "keywords_created", "detail": parsed_results}

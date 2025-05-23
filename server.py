@@ -36,8 +36,12 @@ class WikiInput(BaseModel):
 class MeetingNote(BaseModel):
     project_id: int
     content: str
+<<<<<<< Updated upstream
     position: str
     nickname: str
+=======
+    positions: list[str]
+>>>>>>> Stashed changes
     
 @app.get("/")
 def read_root():
@@ -66,8 +70,12 @@ async def receive_meeting_note(id: int, input: MeetingNote):
         result = Task_Parser.summarize_and_generate_tasks(
             project_id=input.project_id,
             meeting_note=input.content,
+<<<<<<< Updated upstream
             nickname=input.nickname,
             position=input.position
+=======
+            positions=input.positions
+>>>>>>> Stashed changes
         )
 
         # AI → BE 콜백 전달
