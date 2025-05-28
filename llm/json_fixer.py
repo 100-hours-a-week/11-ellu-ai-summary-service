@@ -10,7 +10,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     raise ValueError("OPENAI_API_KEY is not set in .env")
 
-llm = ChatOpenAI(model="gpt-4o", api_key=api_key, temperature=0)
+llm = ChatOpenAI(model="gpt-4o", api_key=api_key, temperature=0.01)
 
 
 class TaskJson(BaseModel):
