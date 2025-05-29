@@ -7,43 +7,47 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from llm.wiki_retriever import retrieve_wiki_context
 from llm.json_fixer import JsonFixer
 import torch
+from typing import TypedDict
+
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class TaskState(TypedDict):
+    meeting_note: str
+    project_id: int
+    position: list[str]
+    prompt: dict        
+    main_task: dict | None      
+    AI: dict | None 
+    BE: dict | None 
+    FE: dict | None 
+    CL: dict | None    
+
+
+# ────────────────────────────────────────────────────────
+# 메인 클래스
+# ────────────────────────────────────────────────────────
 class MeetingTaskParser:
     def __init__(self):
         logger.info("Initializing MeetingTaskParser...")
         load_dotenv()
-        token = os.getenv("HUGGINGFACE_API_KEY")
-        if not token:
+        self._token = os.getenv("HUGGINGFACE_API_KEY")
+        if not self._token:
             logger.warning("HUGGINGFACE_API_KEY not found in environment variables!")
 
         model_name = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
-        logger.info(f"Using model: {model_name}")
-
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"Using device: {self.device}")
+        self.model = AutoModelForCausalLM.from_pretrained(model_name, token=self._token).to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=self._token)
+        self.json_fixer = JsonFixer()
 
-        logger.info("Loading model...")
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            token=token
-        ).to(self.device)
-        logger.info("Model loaded successfully")
-
-        logger.info("Loading tokenizer...")
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            token=token
-        )
-        logger.info("Tokenizer loaded successfully")
-
-        self.json_fixer=JsonFixer()
-
-    def generate_response(self, chat: list) -> str:
+    # ────────────────────────────────────────────────────────
+    # 공통 모델 실행 및 파싱 함수
+    # ────────────────────────────────────────────────────────
+    def run_model_and_parse(self, chat: list) -> list[dict]:
         inputs = self.tokenizer.apply_chat_template(
             chat,
             return_tensors="pt",
@@ -51,7 +55,6 @@ class MeetingTaskParser:
             add_generation_prompt=True
         )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
         outputs = self.model.generate(
             **inputs,
             max_new_tokens=512,
@@ -60,121 +63,123 @@ class MeetingTaskParser:
         )
         prompt_len = inputs["input_ids"].shape[1]
         gen_ids = outputs[0][prompt_len:]
-        return self.tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
+        raw = self.tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
+        try:
+            cleaned = re.sub(r"```json|```", "", raw).strip()
+            parsed = json.loads(cleaned)
+        except json.JSONDecodeError:
+            parsed = self.json_fixer.fix_json(raw)
+        return parsed
 
-    def clean_json_codeblock(self, text: str) -> str:
-        cleaned = re.sub(r"```json|```", "", text).strip()
-        if cleaned.count("{") > cleaned.count("}"):
-            cleaned += "}"
-        return cleaned
+    # ────────────────────────────────────────────────────────
+    # 회의록에서 핵심 태스크 추출
+    # ────────────────────────────────────────────────────────
+    def extract_core_tasks(self, state: TaskState) -> dict:
+        meeting_note = state["meeting_note"]
 
-    def summarize_and_generate_tasks(self, meeting_note: str, project_id: int, position: str):
-        logger.info(f"Processing meeting note for project_id: {project_id}, position: {position}")
 
-        # Step 1: 포지션에 맞는 핵심 업무 요약
+
         system_prompt = {
             "role": "system",
-            "content": (
-                f"너는 회의록에서 '{position}' 파트의 전체 업무 내용을 정리하고, 주요 태스크를 요약하는 전문가야. "
-                "입력된 회의록은 표 형식이 아닌 자유로운 자연어 문장으로 구성되어 있어. "
-                "출력은 절대로 설명 없이, ','로 구분된 핵심 업무 키워드 목록 한 줄만 생성해. "
-                "다른 포지션의 내용은 무시하고, '{position}' 파트의 실질적인 작업만 추출해줘."
-            )
-        }
+            "content": """
+너는 팀 회의록에서 포지션별 할 일을 뽑아주는 전문가야.
 
+- 포지션 정의:
+• AI: 인공지능 개발 파트
+• BE: 백엔드 개발 파트
+• FE: 프론트엔드 개발 파트
+• CL: 클라우드 개발 파트
+
+- 회의록에 나온 문구를 그대로 키워드로 사용하고, 의역 금지야.
+- 출력은 반드시 아래 JSON 템플릿 형식과 키를 **모두** 포함해야 해.
+- 각 포지션 키는 무조건 출력에 포함되며, 할 일이 없으면 빈 배열([])로 채워야 해.
+- 출력 키워드는 반드시 짧고 간결한 **명사구** 또는 **동사+명사** 형태여야 해.
+- 조사·종결어미, 마침표(.)는 절대 쓰지 마.
+
+템플릿:
+{
+  "AI": [],
+  "BE": [],
+  "FE": [],
+  "CL": []
+}
+"""
+        }
         user_prompt = {
             "role": "user",
             "content": f"""
 회의록:
-{meeting_note}
+'{meeting_note}'
 
-'{position}' 파트에서 오늘 해야 할 핵심 작업만 요약해줘.  
-다른 파트는 무시해도 돼.
 
-**출력은 오직 콤마(,)로 구분된 한 줄 요약만 해줘.**
+
+목표: 각 포지션 별로 오늘 할 일을 식별해서 JSON 템플릿에 맞게 작성해줘.
 """
         }
+        return {'prompt': {'main_task': [system_prompt, user_prompt]}}
 
-        summary = self.generate_response([system_prompt, user_prompt])
-        task_candidates = summary.split(',')
-        logger.info(f"Extracted {len(task_candidates)} task candidates")
+    # ────────────────────────────────────────────────────────
+    # 프롬프트 기반 응답 생성
+    # ────────────────────────────────────────────────────────
+    def generate_response(self, state: TaskState) -> dict:
+        chat = state['prompt']['main_task']
+        parsed = self.run_model_and_parse(chat)
+        return {'main_task': parsed}
 
-        # Step 2: 각 업무 키워드에 대해 세부 작업 분해
-        parsed_results = []
-        for task in task_candidates:
-            task = task.strip()
-            if not task:
-                continue
+    # ────────────────────────────────────────────────────────
+    # 다음 분기 노드 결정
+    # ────────────────────────────────────────────────────────
+    def route_to_subtasks(self, state: TaskState) -> list[str]:
+        mapping = {
+            "ai": "generate_AI_subtasks",
+            "be": "generate_BE_subtasks",
+            "fe": "generate_FE_subtasks",
+            "cl": "generate_Cloud_subtasks",
+        }
+        return [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
 
-            logger.info(f"Processing task: {task}")
-            wiki_context = retrieve_wiki_context(task, project_id)
-            logger.info(f"Retrieved wiki for Project ID {project_id}")
+    # ────────────────────────────────────────────────────────
+    # 포지션별 세부 태스크 생성
+    # ────────────────────────────────────────────────────────
+    def generate_position_response(self, state: TaskState, key: str) -> dict:
+        tasks = state['main_task'][key]
+        chat = [{
+            "role": "system",
+            "content": f"""
+다음 지침에 따라 **{key} 포지션 작업 목록**을 세부 작업으로 분해하라.
 
-            langchain_definition = """
-LangChain은 LLM을 기반으로 LLM, Chain 등의 모듈을 연결하여
-사용자 질의에 대해 복합적인 처리를 수행할 수 있도록 돕는 프레임워크입니다.
-주로 체인 구성, 프롬프트 설정, 응답 처리, Tool 연동 등의 작업이 필요합니다.
-"""
+🔹 입력
+- `tasks`는 여러 개의 작업을 담은 배열이다.
 
-            task_chat = [
-                {
-                    "role": "system",
-                    "content": f"""
-Wiki Context: {wiki_context}
+🔹 출력 예시
 
-'{position}' 포지션의 작업 '{task}'를 2~4개의 구체적인 세부 작업(subtasks)으로 나눠줘.
-
-조건:
-- "task" 항목은 반드시 "{task}"를 그대로 사용
-- "subtasks"는 동사+명사 위주 간단 표현 (예: "API 설계", "DB 스키마 작성")
-- 출력은 JSON 하나로만, 설명 없이 아래와 같이
-
-출력 예시:
-{{
-"task": "{task}",
-"subtasks": [
-    "세부 작업 1",
-    "세부 작업 2",
-    "세부 작업 3"
-]
-}}
-"""
-                }
+            [
+            {{  "position": "{key}",
+                "task": "<원본 작업>",
+                "subtasks": ["세부 1", "세부 2"]
+            }}
             ]
 
-            response = self.generate_response(task_chat)
-            logger.info(f"Raw model response: {response}")
 
-            try:
-                # 1차 모델 응답 파싱 시도
-                parsed = json.loads(self.clean_json_codeblock(response))
-                parsed_results.append({
-                    "keyword": parsed["task"],
-                    "subtasks": parsed.get("subtasks", []),
-                    "position" : position
-                })
+🔹 규칙
+- "task"는 입력값 그대로
+- "subtasks"는 2~4개, 동사+명사 형태로 작성
+- 마침표, 설명, 코드블럭 없이 JSON 배열 하나만 출력
+입력 작업 목록:
+{tasks}
+"""
+        }]
+        parsed = self.run_model_and_parse(chat)
+        return {key: parsed}
 
-            except Exception as e:
-                logger.error(f"[Parse Fail] task '{task}' → {e}")
-                logger.error(f"Raw response: {response}")
+    def generate_AI_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "AI")
 
-                try:
-                    # JSON 파서 실패 시 → JsonFixer로 보정 시도
-                    fixed_response = self.json_fixer.fix_json(response)
-                    logger.info(f"[Fix Attempted] Fixed response: {fixed_response}")
+    def generate_BE_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "BE")
 
-                    # 고친 응답 다시 파싱
-                    parsed = json.loads(self.clean_json_codeblock(fixed_response))
-                    parsed_results.append({
-                        "keyword": parsed["task"],
-                        "subtasks": parsed.get("subtasks", [])
-                    })
+    def generate_FE_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "FE")
 
-                except Exception as fix_err:
-                    logger.error(f"[Fix Fail] task '{task}' → {fix_err}")
-                    logger.error(f"Fixed response: {fixed_response if 'fixed_response' in locals() else 'N/A'}")
-                    continue
-
-        return {"message": "subtasks_created", "detail": parsed_results}
-
-
+    def generate_Cloud_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "CL")
