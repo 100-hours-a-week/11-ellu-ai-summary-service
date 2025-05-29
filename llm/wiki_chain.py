@@ -43,7 +43,7 @@ class WikiSummarizer:
             model=self.model,
             tokenizer=self.tokenizer,
             max_length=1024,
-            temperature=0,
+            temperature=0.01,
             device=0 if self.device == "cuda" else -1
         )
         logger.info("Pipeline created")
