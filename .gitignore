@@ -30,3 +30,7 @@ archive.zip
 # macOS
 .DS_Store
 .env
+
+.venv
+chroma_data
+chroma
