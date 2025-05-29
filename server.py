@@ -4,12 +4,11 @@ from pydantic import BaseModel, Field, validator
 from contextlib import asynccontextmanager
 import logging
 import chromadb
-import httpx
-import asyncio
-from typing import List, Optional, Dict, Any
+
+from typing import List,  Dict, Any
 from functools import lru_cache
 from llm.wiki_chain import WikiSummarizer
-from llm.meeting_chain import MeetingTaskParser
+from llm.graph import MeetingWorkflow
 from config import CHROMA_HOST, CHROMA_PORT
 from dotenv import load_dotenv
 import os
@@ -30,7 +29,7 @@ if not BE_URL:
 
 # Initialize chains
 wiki_chain = WikiSummarizer()
-task_parser = MeetingTaskParser()
+task_parser = MeetingWorkflow()
 
 # ChromaDB dependency
 @lru_cache()
@@ -103,14 +102,9 @@ class MeetingNote(BaseModel):
             raise ValueError("At least one position must be provided")
         return v
 
-class TaskResult(BaseModel):
-    position: str
-    tasks: List[Dict[str, Any]]
-    is_last: bool
 
-class CallbackPayload(BaseModel):
-    message: str
-    detail: TaskResult
+
+
 
 # API endpoints
 @app.get("/", status_code=status.HTTP_200_OK)
@@ -148,113 +142,39 @@ async def summarize_wiki(
         "project_id": input.project_id
     }
 
-@app.post("/projects/{project_id}/notes", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/projects/{project_id}/notes", status_code=status.HTTP_200_OK)
 async def receive_meeting_note(
-    project_id: int, 
+    project_id: int,
     input: MeetingNote,
-    background_tasks: BackgroundTasks
+    
 ):
-    """Process meeting notes and extract tasks for different positions."""
+    """Process meeting notes and return tasks immediately."""
     if project_id != input.project_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project ID in URL does not match project ID in request body"
+            detail="Project ID in URL does not match request body"
         )
-    
-    # Add task to background processing
-    background_tasks.add_task(
-        process_meeting_note, 
-        project_id=project_id,
-        content=input.content,
-        positions=input.position
-    )
-    
-    return {
-        "message": "Meeting note processing started",
-        "project_id": project_id,
-        "positions": input.position
-    }
 
-# Background processing functions
-async def process_meeting_note(project_id: int, content: str, positions: List[str]):
-    """Process meeting note content for multiple positions concurrently."""
+    
+    
+
     try:
-        # Create tasks for each position to process concurrently
-        tasks = []
-        for idx, position in enumerate(positions):
-            is_last = idx == len(positions) - 1
-            tasks.append(
-                process_position(
-                    project_id=project_id,
-                    content=content,
-                    position=position,
-                    is_last=is_last
-                )
+            result = task_parser.run(
+                meeting_notes=input.content,
+                project_id=project_id,
+                position=input.position,
+                  
             )
-        
-        # Run tasks concurrently
-        await asyncio.gather(*tasks)
-        logger.info(f"Completed processing meeting note for project {project_id}")
-    
-    except Exception as e:
-        logger.error(f"Error processing meeting note for project {project_id}: {str(e)}")
-        # Could implement a notification system here for failed jobs
 
-async def process_position(project_id: int, content: str, position: str, is_last: bool):
-    """Process meeting note for a specific position and send results to backend."""
-    try:
-        # Process the position
-        result = task_parser.summarize_and_generate_tasks(
-            project_id=project_id,
-            meeting_note=content,
-            position=position
-        )
-        
-        # Prepare callback payload
-        payload = {
-            "message": "subtasks_created",
-            "detail": {
-                "position": position,
-                "tasks": result.get("tasks", []),
-                "is_last": is_last
-            }
-        }
-        
-        # Send results to backend with retry
-        await send_result_to_backend(project_id, payload, max_retries=3)
-        logger.info(f"Completed processing position {position} for project {project_id}")
-    
-    except Exception as e:
-        logger.error(f"Error processing position {position} for project {project_id}: {str(e)}")
+            
 
-async def send_result_to_backend(project_id: int, result: dict, max_retries: int = 3):
-    """Send results to backend with retry logic."""
-    backend_callback_url = f"{BE_URL}/ai-callback/projects/{project_id}/preview"
-    retry_count = 0
-    
-    while retry_count < max_retries:
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(backend_callback_url, json=result)
-                response.raise_for_status()
-                logger.info(f"Successfully sent callback to backend for project {project_id}")
-                return
-        
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error during callback for project {project_id}: {e.response.status_code} - {e.response.text}")
-            # Don't retry for 4xx errors (except 429)
-            if e.response.status_code < 500 and e.response.status_code != 429:
-                break
-            retry_count += 1
-        
-        except Exception as e:
-            logger.error(f"Error sending callback for project {project_id}: {str(e)}")
-            retry_count += 1
-        
-        # Exponential backoff
-        if retry_count < max_retries:
-            wait_time = 2 ** retry_count
-            logger.info(f"Retrying callback in {wait_time} seconds (attempt {retry_count+1}/{max_retries})")
-            await asyncio.sleep(wait_time)
-    
-    logger.error(f"Failed to send callback to backend after {max_retries} attempts for project {project_id}")
+    except Exception as e:
+            logger.error(f"Error processing position '{input.position}': {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error processing position '{input.position}': {str(e)}"
+            )
+    response={"message": "subtasks_created","detail":[]}
+    for i in input.position :
+        response["detail"]=response["detail"]+result[i]
+    return response
