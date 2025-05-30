@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, validator
 from contextlib import asynccontextmanager
 import logging
 import chromadb
-
+import json
 from typing import List,  Dict, Any
 from functools import lru_cache
 from llm.wiki_chain import WikiSummarizer
@@ -12,7 +12,8 @@ from llm.graph import MeetingWorkflow
 from config import CHROMA_HOST, CHROMA_PORT
 from dotenv import load_dotenv
 import os
-
+from sqlalchemy import create_engine, text 
+from sqlalchemy.exc import SQLAlchemyError
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -177,4 +178,22 @@ async def receive_meeting_note(
     response={"message": "subtasks_created","detail":[]}
     for i in input.position :
         response["detail"]=response["detail"]+result[i]
-    return response
+
+    DB_URL = os.getenv("User_info_db")
+    engine = create_engine(DB_URL)
+
+    try:
+        with engine.begin() as connection:
+            query = text("""
+                INSERT INTO user_io (user_input, user_output)
+                VALUES (:user_input, :user_output)
+            """)
+            connection.execute(query, {
+                "user_input": input.content,
+                "user_output": json.dumps(response, ensure_ascii=False)
+            })
+            logger.info("user_io 테이블에 데이터 정상 삽입 완료")
+        return  response
+    except SQLAlchemyError as e:
+        logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
+        return  response
