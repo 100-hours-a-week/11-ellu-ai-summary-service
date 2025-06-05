@@ -1,98 +1,180 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, validator
+from contextlib import asynccontextmanager
 import logging
 import chromadb
-import httpx
+
+from typing import List,  Dict, Any
+from functools import lru_cache
 from llm.wiki_chain import WikiSummarizer
-from llm.meeting_chain import MeetingTaskParser
+from llm.graph import MeetingWorkflow
 from config import CHROMA_HOST, CHROMA_PORT
 from dotenv import load_dotenv
-load_dotenv()
-import logging
 import os
 
-BE_URL = os.getenv("BE_URL")
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
+# Load environment variables
+load_dotenv()
+BE_URL = os.getenv("BE_URL")
+if not BE_URL:
+    logger.error("BE_URL environment variable not set")
+    raise ValueError("BE_URL environment variable is required")
+
+# Initialize chains
 wiki_chain = WikiSummarizer()
-Task_Parser=MeetingTaskParser()
+task_parser = MeetingWorkflow()
 
-app = FastAPI()
+# ChromaDB dependency
+@lru_cache()
+def get_chroma_client():
+    try:
+        client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+        # Test connection
+        client.heartbeat()
+        logger.info("Connected to ChromaDB successfully")
+        return client
+    except Exception as e:
+        logger.error(f"Failed to connect to ChromaDB: {e}")
+        return None
 
-try:
-    chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-    print(chroma_client.heartbeat())
+# Application lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup tasks
+    logger.info("Application starting up...")
+    # Initialize any resources here
     
-except Exception as e:
-    chroma_client = None
-    logging.error(f"ChromaDB 연결 실패: {e}")
+    yield
+    
+    # Cleanup tasks on shutdown
+    logger.info("Application shutting down...")
+    # Close any connections here
 
+# Initialize FastAPI app
+app = FastAPI(
+    title="AI Processing API",
+    description="API for processing wiki summaries and meeting notes",
+    lifespan=lifespan,
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace with specific origins in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Pydantic models
 class WikiInput(BaseModel):
     project_id: int
     content: str
-    updated_at : str
+    updated_at: str
+    
+    @validator('content')
+    def validate_content_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Content cannot be empty")
+        return v
 
 class MeetingNote(BaseModel):
     project_id: int
     content: str
-    position: str
-    nickname: str
+    position: List[str] = Field(..., description="List of positions to parse tasks for")
     
-@app.get("/")
-def read_root():
+    @validator('content')
+    def validate_content_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Content cannot be empty")
+        return v
+        
+    @validator('position')
+    def validate_positions(cls, v):
+        if not v:
+            raise ValueError("At least one position must be provided")
+        return v
+
+
+
+
+
+# API endpoints
+@app.get("/", status_code=status.HTTP_200_OK)
+def read_root(chroma_client=Depends(get_chroma_client)):
+    """Health check endpoint that verifies ChromaDB connection."""
     if chroma_client:
         try:
-            status = chroma_client.heartbeat()
-            return {"status": "ok", "chroma": status}
+            heartbeat = chroma_client.heartbeat()
+            return {"status": "ok", "chroma": heartbeat}
         except Exception as e:
+            logger.error(f"ChromaDB heartbeat check failed: {e}")
             return {"status": "partial", "error": str(e)}
     else:
-        return {"status": "fail", "message": "ChromaDB not connected"}
+        logger.warning("ChromaDB client not available")
+        return {"status": "degraded", "message": "ChromaDB not connected"}
 
-@app.post("/ai/wiki")
-def summarize_wiki(input: WikiInput):
-    wiki_chain.summarize_wiki(input)
-
+@app.post("/ai/wiki", status_code=status.HTTP_202_ACCEPTED)
+async def summarize_wiki(
+    input: WikiInput, 
+    background_tasks: BackgroundTasks,
+    chroma_client=Depends(get_chroma_client)
+):
+    """Process and summarize wiki content in the background."""
+    if not chroma_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="ChromaDB service is currently unavailable"
+        )
+    
+    # Add task to background processing
+    background_tasks.add_task(wiki_chain.summarize_wiki, input)
+    
     return {
-        "message": "Wiki_saved"
+        "message": "Wiki summarization started",
+        "project_id": input.project_id
     }
 
-# BE → AI 회의록 전달
-@app.post("/projects/{id}/notes")
-async def receive_meeting_note(id: int, input: MeetingNote):
-
-    try:
-        result = Task_Parser.summarize_and_generate_tasks(
-            project_id=input.project_id,
-            meeting_note=input.content,
-            nickname=input.nickname,
-            position=input.position
+@app.post("/projects/{project_id}/notes", status_code=status.HTTP_200_OK)
+async def receive_meeting_note(
+    project_id: int,
+    input: MeetingNote,
+    
+):
+    """Process meeting notes and return tasks immediately."""
+    if project_id != input.project_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project ID in URL does not match request body"
         )
 
-        # AI → BE 콜백 전달
-        await send_result_to_backend(id, result)
-
-        return {
-            "message": "processing_complete",
-            "detail": "Result sent to backend"
-        }
     
-    except Exception as e:
-        logging.error(f"Error processing meeting note: {str(e)}")
-        return {
-            "message": "processing_failed",
-            "detail": str(e)
-        }
+    
 
-# 콜백 함수
-async def send_result_to_backend(project_id: int, result: dict):
-    backend_callback_url = f"{BE_URL}/ai-callback/projects/{project_id}/preview"
-    async with httpx.AsyncClient() as client:
-        try:
-            await client.post(
-                backend_callback_url,
-                json=result
+    try:
+            result = task_parser.run(
+                meeting_notes=input.content,
+                project_id=project_id,
+                position=input.position,
+                  
             )
-        except Exception as e:
-            logging.error(f"콜백 전송 실패: {e}")
+
+            
+
+    except Exception as e:
+            logger.error(f"Error processing position '{input.position}': {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error processing position '{input.position}': {str(e)}"
+            )
+    response={"message": "subtasks_created","detail":[]}
+    for i in input.position :
+        response["detail"]=response["detail"]+result[i]
+    return response
