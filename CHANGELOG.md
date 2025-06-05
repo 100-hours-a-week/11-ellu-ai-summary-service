@@ -1,3 +1,16 @@
+# [1.1.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.0.0...v1.1.0) (2025-06-05)
+
+
+### Bug Fixes
+
+* 대소문자 버그 수정 ([#64](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/64)) ([da3f8fd](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/da3f8fd2f8b955ee46e2e74f3f87f35ed5d76a09))
+* 모델 temperature strict positive float 버그 수정 ([e7a8b77](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/e7a8b77773d4aa7304f176188ccaf7dcb7b15667))
+
+
+### Features
+
+* gitignore 추가 및 meeting_chain 프롬프팅 수정([#62](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/62)) ([#65](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/65)) ([7e47e02](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/7e47e02375527d4ac214db317937983624b88b42))
+
 # 1.0.0 (2025-05-11)
 
 
