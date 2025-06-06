@@ -18,7 +18,7 @@ chromadb
 
 fastapi
 uvicorn
-psycopg2
+psycopg2-binary
 sqlalchemy # 유저 데이터 저장을 위한 라이브러리
 
 langsmith
