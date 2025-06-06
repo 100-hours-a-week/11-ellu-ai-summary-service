@@ -1,17 +1,46 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 from contextlib import asynccontextmanager
 import logging
 import chromadb
-
-from typing import List,  Dict, Any
+import json
+from typing import List, Dict, Any
 from functools import lru_cache
 from llm.wiki_chain import WikiSummarizer
 from llm.graph import MeetingWorkflow
 from config import CHROMA_HOST, CHROMA_PORT
 from dotenv import load_dotenv
 import os
+from sqlalchemy import create_engine, text 
+from sqlalchemy.exc import SQLAlchemyError
+from opentelemetry import trace, metrics
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+trace.set_tracer_provider(TracerProvider())
+tracer = trace.get_tracer(__name__)
+
+otlp_exporter = OTLPSpanExporter(
+    endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318") + "/v1/traces"
+)
+
+span_processor = BatchSpanProcessor(otlp_exporter)
+trace.get_tracer_provider().add_span_processor(span_processor)
+
+metric_reader = PeriodicExportingMetricReader(
+    OTLPMetricExporter(
+        endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318") + "/v1/metrics"
+    )
+)
+metrics.set_meter_provider(MeterProvider(metric_readers=[metric_reader]))
 
 # Configure logging
 logging.basicConfig(
@@ -64,6 +93,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Instrument FastAPI with OpenTelemetry
+FastAPIInstrumentor.instrument_app(app)
+RequestsInstrumentor().instrument()
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -101,10 +134,6 @@ class MeetingNote(BaseModel):
         if not v:
             raise ValueError("At least one position must be provided")
         return v
-
-
-
-
 
 # API endpoints
 @app.get("/", status_code=status.HTTP_200_OK)
@@ -146,7 +175,6 @@ async def summarize_wiki(
 async def receive_meeting_note(
     project_id: int,
     input: MeetingNote,
-    
 ):
     """Process meeting notes and return tasks immediately."""
     if project_id != input.project_id:
@@ -155,26 +183,44 @@ async def receive_meeting_note(
             detail="Project ID in URL does not match request body"
         )
 
-    
-    
-
     try:
-            result = task_parser.run(
-                meeting_notes=input.content,
-                project_id=project_id,
-                position=input.position,
-                  
-            )
-
-            
+        result = task_parser.run(
+            meeting_notes=input.content,
+            project_id=project_id,
+            position=input.position,
+        )
 
     except Exception as e:
-            logger.error(f"Error processing position '{input.position}': {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error processing position '{input.position}': {str(e)}"
-            )
-    response={"message": "subtasks_created","detail":[]}
-    for i in input.position :
-        response["detail"]=response["detail"]+result[i]
-    return response
+        logger.error(f"Error processing position '{input.position}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing position '{input.position}': {str(e)}"
+        )
+    
+    response = {"message": "subtasks_created", "detail": []}
+    for i in input.position:
+        response["detail"] = response["detail"] + result[i]
+
+    DB_URL = os.getenv("User_info_db")
+    engine = create_engine(DB_URL)
+
+    try:
+        with engine.begin() as connection:
+            query = text("""
+                INSERT INTO user_io (user_input, user_output)
+                VALUES (:user_input, :user_output)
+            """)
+            connection.execute(query, {
+                "user_input": input.content,
+                "user_output": json.dumps(response, ensure_ascii=False)
+            })
+            logger.info("user_io 테이블에 데이터 정상 삽입 완료")
+        return response
+    except SQLAlchemyError as e:
+        logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
+        return response
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
