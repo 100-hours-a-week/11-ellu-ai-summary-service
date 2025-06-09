@@ -30,4 +30,5 @@ opentelemetry-exporter-otlp
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-sqlalchemy
+opentelemetry-distro[otlp]
 prometheus-client

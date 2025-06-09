@@ -14,33 +14,6 @@ from dotenv import load_dotenv
 import os
 from sqlalchemy import create_engine, text 
 from sqlalchemy.exc import SQLAlchemyError
-from opentelemetry import trace, metrics
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-
-trace.set_tracer_provider(TracerProvider())
-tracer = trace.get_tracer(__name__)
-
-otlp_exporter = OTLPSpanExporter(
-    endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318") + "/v1/traces"
-)
-
-span_processor = BatchSpanProcessor(otlp_exporter)
-trace.get_tracer_provider().add_span_processor(span_processor)
-
-metric_reader = PeriodicExportingMetricReader(
-    OTLPMetricExporter(
-        endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4318") + "/v1/metrics"
-    )
-)
-metrics.set_meter_provider(MeterProvider(metric_readers=[metric_reader]))
 
 # Configure logging
 logging.basicConfig(
@@ -93,9 +66,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Instrument FastAPI with OpenTelemetry
-FastAPIInstrumentor.instrument_app(app)
-RequestsInstrumentor().instrument()
 
 # Add CORS middleware
 app.add_middleware(
