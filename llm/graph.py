@@ -16,22 +16,26 @@ class MeetingWorkflow:
         builder.add_node("generate_BE_subtasks", self.task_handler.generate_BE_response)
         builder.add_node("generate_FE_subtasks", self.task_handler.generate_FE_response)
         builder.add_node("generate_Cloud_subtasks", self.task_handler.generate_Cloud_response)
-
+        builder.add_node("retry_node", self.task_handler.retry)
+        builder.add_node("judge_quality", self.task_handler.judge_quality_with_json_mode)
         # 엣지 연결
         builder.add_edge(START, "extract_core_tasks")
         builder.add_edge("extract_core_tasks", "generate_response")
+        builder.add_edge("generate_response", "judge_quality")
  
         # 조건 분기
         builder.add_conditional_edges(
-            "generate_response",
+            "judge_quality",
             self.task_handler.route_to_subtasks,
             {
                 "generate_AI_subtasks": "generate_AI_subtasks",
                 "generate_BE_subtasks": "generate_BE_subtasks",
                 "generate_FE_subtasks": "generate_FE_subtasks",
                 "generate_Cloud_subtasks": "generate_Cloud_subtasks",
+                "retry_node": "retry_node" 
             }
         )
+        builder.add_edge("retry_node", "generate_response")
 
         # 포지션별 응답 후 종료
         builder.add_edge("generate_AI_subtasks", END)
