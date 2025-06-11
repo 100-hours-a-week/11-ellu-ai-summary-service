@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import os
 from sqlalchemy import create_engine, text 
 from sqlalchemy.exc import SQLAlchemyError
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Configure logging
 logging.basicConfig(
