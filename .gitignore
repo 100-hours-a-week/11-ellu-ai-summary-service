@@ -34,3 +34,10 @@ archive.zip
 .venv
 chroma_data
 chroma
+
+/chroma_*
+chroma.log
+
+*_post_test.py
+
+data/

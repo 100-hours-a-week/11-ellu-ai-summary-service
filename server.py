@@ -7,7 +7,7 @@ import chromadb
 import json
 from typing import List, Dict, Any
 from functools import lru_cache
-from llm.wiki_chain import WikiSummarizer
+from wiki.wiki_chain import WikiSummarizer
 from llm.graph import MeetingWorkflow
 from config import CHROMA_HOST, CHROMA_PORT
 from dotenv import load_dotenv
@@ -80,14 +80,13 @@ app.add_middleware(
 # Pydantic models
 class WikiInput(BaseModel):
     project_id: int
-    content: str
     updated_at: str
     
-    @validator('content')
-    def validate_content_not_empty(cls, v):
-        if not v.strip():
-            raise ValueError("Content cannot be empty")
-        return v
+    # @validator('content')
+    # def validate_content_not_empty(cls, v):
+    #     if not v.strip():
+    #         raise ValueError("Content cannot be empty")
+    #     return v
 
 class MeetingNote(BaseModel):
     project_id: int
@@ -139,7 +138,7 @@ async def summarize_wiki(
     
     return {
         "message": "Wiki summarization started",
-        "project_id": input.project_id
+        # "project_id": input.project_id
     }
 
 @app.post("/projects/{project_id}/notes", status_code=status.HTTP_200_OK)
@@ -170,7 +169,8 @@ async def receive_meeting_note(
     
     response = {"message": "subtasks_created", "detail": []}
     for i in input.position:
-        response["detail"] = response["detail"] + result[i]
+        # response["detail"] = response["detail"] + result[i]
+        response["detail"].append(result[i])
 
     DB_URL = os.getenv("User_info_db")
     engine = create_engine(DB_URL)
