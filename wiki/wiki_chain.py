@@ -131,7 +131,7 @@ class WikiSummarizer:
 
     def summarize_diff_files(self, state: dict) -> dict:
         logger.info(f"Starting wiki summarization for project_id: {state.project_id}")
-        fetcher = WikiFetcher(state.project_id)
+        fetcher = WikiFetcher(state.project_id, state.url)
         changed_files = fetcher.get_diff_files()
         logger.info(f"Summarizing {len(changed_files)} files")
 

@@ -80,6 +80,7 @@ app.add_middleware(
 # Pydantic models
 class WikiInput(BaseModel):
     project_id: int
+    url: str
     updated_at: str
     
     # @validator('content')
