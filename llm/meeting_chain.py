@@ -7,7 +7,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from typing import Literal, TypedDict
 import concurrent.futures
-from llm.wiki_retriever import retrieve_wiki_context
+from wiki.wiki_retriever import WikiRetriever
 from llm.json_fixer import JsonFixer
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -54,6 +54,7 @@ class MeetingTaskParser:
         self.model = AutoModelForCausalLM.from_pretrained(model_name, token=self._token).to(self.device)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=self._token)
         self.json_fixer = JsonFixer()
+        self.wiki_retriever = WikiRetriever()
 
     # ────────────────────────────────────────────────────────
     # 모델 실행 및 JSON 파싱
@@ -178,15 +179,22 @@ class MeetingTaskParser:
 
     def generate_position_response(self, state: TaskState, key: str) -> dict:
         tasks = state['main_task'][key]
-        
+
         # 빈 작업 리스트 처리
         if not tasks or tasks == []:
             return {key: []}
         
-        chat = [
-            {
-                "role": "system",
-                "content": f"""
+        outputs = []
+        for task in tasks:
+            # task별로 wiki 검색
+            context_dict = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
+            wiki_context = context_dict[task]
+
+            # 세부 작업 분해
+            chat = [
+                {
+                    "role": "system",
+                    "content": f"""
     당신은 숙련된 {key} 포지션의 시니어 엔지니어입니다.
 
     🔹 **포지션별 전문 영역:**
@@ -203,6 +211,7 @@ class MeetingTaskParser:
 
     🔹 **세부 작업 작성 규칙:**
     • 동사로 시작하는 명확한 액션 아이템
+    • {wiki_context}를 참고해서 작성
     • 2-5개의 적절한 단계로 분해
     • 너무 세분화하지 않되, 충분히 구체적으로
     • 각 단계는 독립적으로 수행 가능해야 함
@@ -242,7 +251,8 @@ class MeetingTaskParser:
             }
         ]
         
-        parsed = self.run_model_and_parse(chat)
+            parsed = self.run_model_and_parse(chat)
+            outputs.extend(parsed)
         return {key: parsed}
     # ────────────────────────────────────────────────────────
     # LLM 평가 기반 품질 판단 → retry 여부 판단
