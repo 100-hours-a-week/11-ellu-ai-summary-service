@@ -134,7 +134,7 @@ async def summarize_wiki(
         )
     
     # Add task to background processing
-    background_tasks.add_task(wiki_chain.summarize_wiki, input)
+    background_tasks.add_task(wiki_chain.summarize_diff_files, input)
     
     return {
         "message": "Wiki summarization started",
