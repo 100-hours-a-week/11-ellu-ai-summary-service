@@ -48,7 +48,7 @@ class MeetingTaskParser:
         self._token = os.getenv("HUGGINGFACE_API_KEY")
         if not self._token:
             logger.warning("HUGGINGFACE_API_KEY not found in environment variables!")
-
+        # model_name = "mistralai/Ministral-8B-Instruct-2410"
         model_name = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = AutoModelForCausalLM.from_pretrained(model_name, token=self._token).to(self.device)
@@ -189,6 +189,7 @@ class MeetingTaskParser:
             # task별로 wiki 검색
             context_dict = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
             wiki_context = context_dict[task]
+            # wiki_context =""
 
             # 세부 작업 분해
             chat = [
@@ -368,9 +369,9 @@ class MeetingTaskParser:
     # judge 결과에 따라 분기: retry or 포지션 노드
     # ────────────────────────────────────────────────────────
     def route_after_validation(self, state: TaskState) -> list[str]:
-        if state['validation_result'] == 'fail':
-            return ["retry_node"]
-        else:
+        # if state['validation_result'] == 'fail':
+        #     return ["retry_node"]
+        # else:
             return self.route_to_subtasks(state)
 
     # ────────────────────────────────────────────────────────
