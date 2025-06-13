@@ -25,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-BE_URL = os.getenv("BE_URL")
-if not BE_URL:
-    logger.error("BE_URL environment variable not set")
-    raise ValueError("BE_URL environment variable is required")
+# BE_URL = os.getenv("BE_URL")
+# if not BE_URL:
+#     logger.error("BE_URL environment variable not set")
+#     raise ValueError("BE_URL environment variable is required")
 
 # Initialize chains
 wiki_chain = WikiSummarizer()
