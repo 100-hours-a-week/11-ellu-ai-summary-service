@@ -15,15 +15,13 @@ class WikiFetcher:
             if url.endswith("/wiki"):
                 base_url = url[:-5]
                 self.url = f"{base_url}.wiki.git"
-            elif url.endswith(".wiki.git"):
-                self.url = url
             else:
-                raise ValueError(f"유효하지 않은 URL: {url}. '/wiki' 혹은 '.wiki.git' 형태의 주소를 넣어주세요.")
+                raise ValueError(f"유효하지 않은 URL: {url}. '/wiki' 형태의 주소를 넣어주세요.")
             
         logger.info(f"[WikiFetcher] URL: {self.url}")
 
     def get_diff_files(self):
-        # 폴더가 없으면 clone + s전체 파일
+        # 폴더가 없으면 clone
         if not os.path.exists(self.local_path):
             logger.info(f"[WikiFetcher] Cloning repo for project {self.project_id}...")
             Repo.clone_from(self.url, self.local_path)
