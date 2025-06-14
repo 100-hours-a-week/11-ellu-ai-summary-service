@@ -146,6 +146,7 @@ async def process_and_callback(input: WikiInput):
         logger.error(f"Wiki summarization failed for project_id={input.project_id}: {e}")
         await wiki_callback(input.project_id, "failed")
 
+
 @app.post("/ai/wiki", status_code=status.HTTP_202_ACCEPTED)
 async def summarize_wiki(
     input: WikiInput,
@@ -196,24 +197,24 @@ async def receive_meeting_note(
         # response["detail"] = response["detail"] + result[i]
         response["detail"].append(result[i])
 
-    # DB_URL = os.getenv("User_info_db")
-    # engine = create_engine(DB_URL)
+    DB_URL = os.getenv("User_info_db")
+    engine = create_engine(DB_URL)
 
-    # try:
-    #     with engine.begin() as connection:
-    #         query = text("""
-    #             INSERT INTO user_io (user_input, user_output)
-    #             VALUES (:user_input, :user_output)
-    #         """)
-    #         connection.execute(query, {
-    #             "user_input": input.content,
-    #             "user_output": json.dumps(response, ensure_ascii=False)
-    #         })
-    #         logger.info("user_io 테이블에 데이터 정상 삽입 완료")
-    #     return response
-    # except SQLAlchemyError as e:
-    #     logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
-    #     return response
+    try:
+        with engine.begin() as connection:
+            query = text("""
+                INSERT INTO user_io (user_input, user_output)
+                VALUES (:user_input, :user_output)
+            """)
+            connection.execute(query, {
+                "user_input": input.content,
+                "user_output": json.dumps(response, ensure_ascii=False)
+            })
+            logger.info("user_io 테이블에 데이터 정상 삽입 완료")
+        return response
+    except SQLAlchemyError as e:
+        logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
+        return response
 
 @app.get("/metrics")
 async def metrics():
