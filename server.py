@@ -16,6 +16,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import httpx
+import subprocess
 
 # Configure logging
 logging.basicConfig(
@@ -122,6 +123,7 @@ def read_root(chroma_client=Depends(get_chroma_client)):
         logger.warning("ChromaDB client not available")
         return {"status": "degraded", "message": "ChromaDB not connected"}
 
+
 # 위키 콜백 함수
 async def wiki_callback(project_id: int, status: str):
     try:
@@ -137,16 +139,27 @@ async def wiki_callback(project_id: int, status: str):
     except Exception as e:
         logger.error(f"Callback failed for project_id={project_id}: {e}")
 
-
 async def process_and_callback(input: WikiInput):
     try:
         await wiki_chain.summarize_diff_files(input)
         await wiki_callback(input.project_id, "completed")
+    except ValueError as ve:
+        logger.error(f"Invalid URL for project_id={input.project_id}: {ve}")
     except Exception as e:
         logger.error(f"Wiki summarization failed for project_id={input.project_id}: {e}")
         await wiki_callback(input.project_id, "failed")
 
-
+def validate_github_url(url: str) -> bool:
+    if not url.endswith("/wiki"):
+        return False
+    try:
+        base_url = url[:-5]
+        git_url = f"{base_url}.wiki.git"
+        subprocess.run(["git", "ls-remote", git_url], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    
 @app.post("/ai/wiki", status_code=status.HTTP_202_ACCEPTED)
 async def summarize_wiki(
     input: WikiInput,
@@ -158,10 +171,12 @@ async def summarize_wiki(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="ChromaDB service is currently unavailable"
         )
-    
-    # 백그라운드에서 실행
+    # url 검증
+    if not validate_github_url(input.url):
+        raise HTTPException(status_code=400, 
+                            detail="유효하지 않은 URL 입니다. wiki url을 그대로 올려주세요. ('/wiki'로 끝나야 합니다.)")
+    # 백그라운드 실행
     background_tasks.add_task(process_and_callback, input)
-
     return {"message": "Wiki summarization started"}
 
 
