@@ -186,16 +186,18 @@ async def meeting_note_callback(project_id: int, status: str, task_data: dict = 
     try:
         backend_callback_url = f"{BE_URL}/ai-callback/projects/{project_id}/preview"
         callback_payload = {
-            "status": status
+            "message" :"subtasks_created" if status == "completed" else "failed",
+            "detail" : []
         }
         
         # 성공 시 태스크 데이터도 함께 전송
-        if status == "completed" and task_data:
-            callback_payload["tasks"] = task_data
+        if status == "completed" and task_data and "detail" in task_data:
+            callback_payload["detail"] = task_data["detail"]
             
         async with httpx.AsyncClient() as client:
             response = await client.post(backend_callback_url, json=callback_payload)
             response.raise_for_status()
+            logger.info(f"SEND RESPONSE: {response.json()}")
             logger.info(f"회의록 콜백 전송 성공 - project_id: {project_id}")
     except Exception as e:
         logger.error(f"회의록 콜백 전송 실패 - project_id: {project_id}, 오류: {e}")
