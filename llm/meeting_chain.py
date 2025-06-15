@@ -187,9 +187,9 @@ class MeetingTaskParser:
         outputs = []
         for task in tasks:
             # task별로 wiki 검색
-            context_dict = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
-            wiki_context = context_dict[task]
-            # wiki_context =""
+            # context_dict = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
+            # wiki_context = context_dict[task]
+            wiki_context =""
 
             # 세부 작업 분해
             chat = [
