@@ -210,7 +210,7 @@ async def receive_meeting_note(
     response = {"message": "subtasks_created", "detail": []}
     for i in input.position:
         # response["detail"] = response["detail"] + result[i]
-        response["detail"].append(result[i])
+        response["detail"].extend(result[i])
 
     DB_URL = os.getenv("User_info_db")
     engine = create_engine(DB_URL)
