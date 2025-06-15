@@ -180,56 +180,89 @@ async def summarize_wiki(
     return {"message": "Wiki summarization started"}
 
 
-
-@app.post("/projects/{project_id}/notes", status_code=status.HTTP_200_OK)
-async def receive_meeting_note(
-    project_id: int,
-    input: MeetingNote,
-):
-    """Process meeting notes and return tasks immediately."""
-    if project_id != input.project_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Project ID in URL does not match request body"
-        )
-
+# 회의록 콜백 함수
+async def meeting_note_callback(project_id: int, status: str, task_data: dict = None):
+    """회의록 처리 완료 후 백엔드에 콜백 전송"""
     try:
+        backend_callback_url = f"{BE_URL}/ai-callback/projects/{project_id}/preview"
+        callback_payload = {
+            "status": status
+        }
+        
+        # 성공 시 태스크 데이터도 함께 전송
+        if status == "completed" and task_data:
+            callback_payload["tasks"] = task_data
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.post(backend_callback_url, json=callback_payload)
+            response.raise_for_status()
+            logger.info(f"회의록 콜백 전송 성공 - project_id: {project_id}")
+    except Exception as e:
+        logger.error(f"회의록 콜백 전송 실패 - project_id: {project_id}, 오류: {e}")
+
+# 회의록 처리 및 콜백 함수
+async def process_meeting_note_and_callback(input: MeetingNote, project_id: int):
+    """회의록 처리 및 콜백 실행"""
+    try:
+        # 회의록에서 태스크 추출
         result = task_parser.run(
             meeting_notes=input.content,
             project_id=project_id,
             position=input.position,
         )
-
+        
+        # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
+        response_data = {"message": "subtasks_created", "detail": []}
+        for position in input.position:
+            if result.get(position):  # 해당 포지션에 결과가 있는 경우만
+                response_data["detail"].extend(result[position])
+        
+        # 사용자 입출력 데이터 DB 저장
+        DB_URL = os.getenv("User_info_db")
+        if DB_URL:
+            engine = create_engine(DB_URL)
+            try:
+                with engine.begin() as connection:
+                    query = text("""
+                        INSERT INTO user_io (user_input, user_output)
+                        VALUES (:user_input, :user_output)
+                    """)
+                    connection.execute(query, {
+                        "user_input": input.content,
+                        "user_output": json.dumps(response_data, ensure_ascii=False)
+                    })
+                    logger.info("user_io 테이블에 데이터 정상 삽입 완료")
+            except SQLAlchemyError as e:
+                logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
+        
+        # 성공 콜백 전송
+        await meeting_note_callback(project_id, "completed", response_data)
+        
     except Exception as e:
-        logger.error(f"Error processing position '{input.position}': {e}")
+        logger.error(f"회의록 처리 실패 - project_id: {project_id}, 오류: {e}")
+        # 실패 콜백 전송
+        await meeting_note_callback(project_id, "failed")
+
+@app.post("/projects/{project_id}/notes", status_code=status.HTTP_202_ACCEPTED)
+async def receive_meeting_note(
+    project_id: int,
+    input: MeetingNote,
+    background_tasks: BackgroundTasks,
+):
+    """회의록을 받아서 태스크로 분해하고 백엔드에 콜백 전송"""
+    if project_id != input.project_id:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing position '{input.position}': {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="URL의 프로젝트 ID와 요청 본문의 프로젝트 ID가 일치하지 않습니다"
         )
+
+    # 백그라운드에서 회의록 처리
+    background_tasks.add_task(process_meeting_note_and_callback, input, project_id)
     
-    response = {"message": "subtasks_created", "detail": []}
-    for i in input.position:
-        # response["detail"] = response["detail"] + result[i]
-        response["detail"].extend(result[i])
-
-    DB_URL = os.getenv("User_info_db")
-    engine = create_engine(DB_URL)
-
-    try:
-        with engine.begin() as connection:
-            query = text("""
-                INSERT INTO user_io (user_input, user_output)
-                VALUES (:user_input, :user_output)
-            """)
-            connection.execute(query, {
-                "user_input": input.content,
-                "user_output": json.dumps(response, ensure_ascii=False)
-            })
-            logger.info("user_io 테이블에 데이터 정상 삽입 완료")
-        return response
-    except SQLAlchemyError as e:
-        logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
-        return response
+    return {
+        "message": "회의록 처리가 시작되었습니다",
+        "project_id": project_id
+    }
 
 @app.get("/metrics")
 async def metrics():
