@@ -1,6 +1,6 @@
 import chromadb
 from .embed_model import CustomEmbeddingFunction
-from config import CHROMA_HOST, CHROMA_PORT
+from app.config import CHROMA_HOST, CHROMA_PORT
 
 class ChromaDBManager:
     def __init__(self, collection_name="wiki_summaries", host=CHROMA_HOST, port=CHROMA_PORT):

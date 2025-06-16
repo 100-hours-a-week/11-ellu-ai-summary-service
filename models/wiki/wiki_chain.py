@@ -3,7 +3,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from langchain_huggingface import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from vectordb.chroma_store import ChromaDBManager
-from wiki.wiki_fetcher import WikiFetcher
+from models.wiki.wiki_fetcher import WikiFetcher
 import torch 
 import logging
 import time
