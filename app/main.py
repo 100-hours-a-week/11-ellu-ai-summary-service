@@ -94,7 +94,7 @@ async def meeting_note_callback(project_id: int, status: str, task_data: dict = 
         # 성공 시 태스크 데이터도 함께 전송
         if status == "completed" and task_data and "detail" in task_data:
             callback_payload["detail"] = task_data["detail"]
-            
+        logger.info(f"callback_payload: {callback_payload}")
         async with httpx.AsyncClient() as client:
             response = await client.post(backend_callback_url, json=callback_payload)
             response.raise_for_status()

@@ -127,7 +127,7 @@ class MeetingPromptManager:
 
     🔹 **세부 작업 작성 규칙:**
     • 동사로 시작하는 명확한 액션 아이템
-    • {wiki_context}를 참고해서 작성
+    
     • 2-5개의 적절한 단계로 분해
     • 너무 세분화하지 않되, 충분히 구체적으로
     • 각 단계는 독립적으로 수행 가능해야 함
@@ -136,7 +136,7 @@ class MeetingPromptManager:
     [
       {{
         "position": "{position}",
-        "task": "<원본 작업명 그대로>",
+        "task": "{tasks}",
         "subtasks": [
           "구체적인 세부 작업 1",
           "구체적인 세부 작업 2", 
@@ -153,8 +153,7 @@ class MeetingPromptManager:
                 "content": f"""
     다음 {position} 포지션의 작업 목록을 세부 단계로 분해해주세요.
 
-    **작업 목록:**
-    {tasks}
+    
 
     **요구사항:**
     1. 각 작업을 실제 개발 프로세스에 맞는 세부 단계로 분해

@@ -56,8 +56,10 @@ class NodeHandler:
                 # wiki_context = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
                 wiki_context=''
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
+                
                 parsed = self.task_model.run_model_and_parse(chat)
-                outputs.extend(parsed)
+                # logger.info(f"parsed: {parsed}")
+                outputs.append(parsed)
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {tasks}태스크 처리, {outputs} 결과 생성")
             return {key: outputs}
