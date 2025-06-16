@@ -7,9 +7,7 @@ import json
 
 
 
-class TaskJson(BaseModel):
-    task: str
-    subtasks: list[str]
+
 
 
 class JsonFixer:
