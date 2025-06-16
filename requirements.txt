@@ -1,4 +1,4 @@
-# LangChain 및 LangGraph
+﻿# LangChain 및 LangGraph
 langchain
 langgraph
 langchain_community
@@ -14,6 +14,8 @@ torch>=2.1.0
 
 # vector DB
 chromadb
+# git
+GitPython
 
 
 fastapi
@@ -32,3 +34,7 @@ opentelemetry-instrumentation-requests
 opentelemetry-instrumentation-sqlalchemy
 opentelemetry-distro[otlp]
 prometheus-client
+
+
+# 시간 처리
+pytz

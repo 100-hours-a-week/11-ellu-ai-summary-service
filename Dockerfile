@@ -5,4 +5,4 @@ RUN opentelemetry-bootstrap --action=install
 WORKDIR /app
 COPY ./ /app/
 EXPOSE 8080
-CMD ["opentelemetry-instrument", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["opentelemetry-instrument", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
