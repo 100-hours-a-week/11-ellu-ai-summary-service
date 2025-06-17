@@ -11,14 +11,16 @@ class ChromaDBManager:
         self.embedding_function = CustomEmbeddingFunction()
     
     def embed_and_store(self, summary: str, metadata: dict):
-        """Embed and store document in ChromaDB, replacing existing documents with same project_id."""
-        doc_id = f"{metadata['project_id']}_{metadata.get('updated_at', 'unknown')}"
+        """Embed and store document in ChromaDB."""
+        doc_id = f"{metadata['project_id']}_{metadata.get('document_path', 'unknown')}_{metadata.get('updated_at', 'unknown')}"
         
-        # Delete existing documents with the same project_id
-        self.collection.delete(where={"project_id": metadata["project_id"]})
-
-        # Generate embedding and add new document
-        embedding = self.embedding_function([summary])[0]  # Get first item since it's a single document
+        try:
+            self.collection.delete(ids=[doc_id])
+        except:
+            pass  # 기존 문서가 없으면 무시
+        
+        # 새 문서 추가
+        embedding = self.embedding_function([summary])[0]
         self.collection.add(
             ids=[doc_id], 
             documents=[summary], 
@@ -26,7 +28,7 @@ class ChromaDBManager:
             metadatas=[metadata]
         )
         
-        print(f"DB 갱신 완료: {doc_id}, embedding: {embedding[:5]}...")
+        print(f"문서 저장 완료: {doc_id}")
         return doc_id
     
     def search(self, query_text, n_results=5, where_filter=None):
