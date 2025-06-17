@@ -14,3 +14,4 @@ class TaskState(TypedDict, total=False):
     feedback: Optional[str]
     error: Optional[str]
     status: Optional[str]
+    count: int

@@ -7,6 +7,7 @@ from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
 import logging
 import concurrent.futures
+from utils.valid import valid_json
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class NodeHandler:
         self.prompt = MeetingPromptManager()
         self.wiki_retriever = WikiRetriever()
         self.task_model = Generate_llm_response()
+        self.valid=valid_json()
         self.llm = ChatOpenAI(
             model=GPT_MODEL,
             temperature=TEMPERATURE,
@@ -37,7 +39,7 @@ class NodeHandler:
     def generate_response(self, state: TaskState) -> dict:
         try:
             chat = state['prompt']['main_task']
-            parsed = self.task_model.run_model_and_parse(chat)
+            parsed = self.task_model.run_model_and_parse(chat,"main")
             logger.info("메인 태스크 응답 생성 성공")
             return {'main_task': parsed}
         except Exception as e:
@@ -57,7 +59,7 @@ class NodeHandler:
                 wiki_context=''
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
                 
-                parsed = self.task_model.run_model_and_parse(chat)
+                parsed = self.task_model.run_model_and_parse(chat,"sub")
                 # logger.info(f"parsed: {parsed}")
                 outputs.append(parsed)
             
@@ -87,7 +89,7 @@ class NodeHandler:
             logger.info(f"품질 평가 완료 - 결과: {evaluation_data['result']}")
             if evaluation_data["result"] == "fail":
                 logger.warning(f"품질 평가 실패 - 피드백: {feedback}")
-            
+                
             return result
         except Exception as e:
             logger.error(f"품질 평가 중 오류: {str(e)}")
@@ -112,29 +114,45 @@ class NodeHandler:
         return "\n".join(feedback_parts)
 
     def route_to_subtasks(self, state: TaskState) -> list[str]:
-        try:
+        
             mapping = {
                 "ai": "generate_AI_subtasks",
                 "be": "generate_BE_subtasks",
                 "fe": "generate_FE_subtasks",
                 "cl": "generate_Cloud_subtasks",
             }
-            routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
-            logger.info(f"서브태스크 라우팅 성공 - {len(routes)}개 경로: {routes}")
-            return routes
-        except Exception as e:
-            logger.error(f"서브태스크 라우팅 중 오류: {str(e)}")
-            return ["retry_node"]
+            if state['validation_result'] == "pass" or state['count'] == 4:
+                if state['count'] == 4 :
+                    meeting_note = state["meeting_note"]
+                    prompt = self.prompt.get_llm_invoke_prompt(meeting_note)
+                    
+                    response = self.llm.invoke(prompt)
+                    parsed = self.valid(response)
+                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                    logger.info(f"서브태스크 라우팅 성공 - {len(routes)}개 경로: {routes}")
+                    state['main_task']= parsed
+                    return routes
+                    
+
+                else:
+                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                    logger.info(f"서브태스크 라우팅 성공 - {len(routes)}개 경로: {routes}")
+                    return routes
+            else :
+                return ["retry_node"]
+
 
     def retry(self, state: TaskState) -> dict:
         try:
             meeting_note = state["meeting_note"]
             main_task = state["main_task"]
             feedback = state["feedback"]
+            
             prompt_list = self.prompt.get_retry_prompts(meeting_note, main_task, feedback)
-            result = {'prompt': {'main_task': prompt_list}}
+            result = {'prompt': {'main_task': prompt_list},'count':state['count']+1}
             logger.info("재시도 프롬프트 생성 성공")
             return result
+
         except Exception as e:
             logger.error(f"재시도 중 오류: {str(e)}")
             return {'error': str(e)}
