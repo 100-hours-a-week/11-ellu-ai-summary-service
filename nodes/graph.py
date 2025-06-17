@@ -66,7 +66,8 @@ class MeetingWorkflow:
                 'FE': None,
                 'CL': None,
                 'error': None,
-                'status': 'pending'
+                'status': 'pending',
+                'count' : 0
             }
             result = self.graph.invoke(init_state)
             

@@ -14,10 +14,12 @@ TEMPERATURE = 0
 MODEL_KWARGS = {"response_format": {"type": "json_object"}}
 
 # ChromaDB 설정
-CHROMA_HOST = "localhost"
-CHROMA_PORT = 8001
+CHROMA_HOST = os.getenv("CHROMA_HOST")
+CHROMA_PORT = os.getenv("CHROMA_PORT")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+
 MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 Hugging_FACE_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
