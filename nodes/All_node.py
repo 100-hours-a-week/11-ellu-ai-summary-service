@@ -55,21 +55,34 @@ class NodeHandler:
             
             outputs = []
             for task in tasks:
-                # wiki_context = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
-                wiki_context=''
+                logger.info(f"Processing task: {task}")
+
+                try:
+                    wiki_result = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
+                    wiki_context = wiki_result.get(task, "") # 텍스트 추출
+
+                    if wiki_context:
+                        logger.info(f"Retrieved wiki for Project ID {state['project_id']}: {len(wiki_context)} chars")
+                    else:
+                        logger.warning(f"No wiki content found for Project ID {state['project_id']}")
+                        wiki_context = ""  
+                        
+                except Exception as e:
+                    logger.error(f"Wiki retrieval failed for Project ID {state['project_id']}: {e}")
+                    wiki_context = "" 
+
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
                 
-                parsed = self.task_model.run_model_and_parse(chat,"sub")
-                # logger.info(f"parsed: {parsed}")
-                outputs.append(parsed)
+                parsed = self.task_model.run_model_and_parse(chat, "sub")
             
-            logger.info(f"포지션 {key} 응답 생성 성공 - {tasks}태스크 처리, {outputs} 결과 생성")
+                outputs.append(parsed) 
+            
+            logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")
             return {key: outputs}
         except Exception as e:
             logger.error(f"포지션별 응답 생성 중 오류: {str(e)}")
             return {'error': str(e)}
 
-    
 
     def judge_quality_with_json_mode(self, state: TaskState) -> dict:
         try:
@@ -205,4 +218,4 @@ class NodeHandler:
         return self.generate_position_response(state, "FE")
 
     def generate_Cloud_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "CL")
+        return self.generate_position_response(state, "CL") 
