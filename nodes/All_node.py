@@ -190,9 +190,9 @@ class NodeHandler:
             return {'error': str(e)}
         
     def route_after_validation(self, state: TaskState) -> list[str]:
-        # if state['validation_result'] == 'fail':
-        #     return ["retry_node"]
-        # else:
+        if state['validation_result'] == 'fail':
+            return ["retry_node"]
+        else:
             return self.route_to_subtasks(state)
     
     def generate_AI_response(self, state: TaskState) -> dict:
