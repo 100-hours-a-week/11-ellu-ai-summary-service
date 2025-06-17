@@ -45,25 +45,29 @@ class Generate_llm_response:
     # ────────────────────────────────────────────────────────
     # 모델 실행 및 JSON 파싱
     # ────────────────────────────────────────────────────────
-    def run_model_and_parse(self, chat: list) -> dict:
+    def run_model_and_parse(self, chat: list,where:str) -> dict:
         """LLM 모델 실행 및 결과 파싱"""
         try:
             # LLM 모델 실행
             response = self.llm.invoke(chat)
             
             # 응답 파싱
-            return self.parse_response(response.content)
+            return self.parse_response(response.content,where)
         except Exception as e:
             logger.error(f"모델 실행 중 오류 발생: {str(e)}")
             return {"error": str(e)}
 
-    def parse_response(self, content: str) -> dict:
+    def parse_response(self, content: str,where:str) -> dict:
         """응답 파싱"""
         try:
             return json.loads(content)
         except json.JSONDecodeError as e:
-            logger.error(f"JSON 파싱 오류: {str(e)}")
-            return {"error": f"JSON 파싱 오류: {str(e)}"}
+            if where =="main":
+                logger.error(f"Main JSON 파싱 오류: {str(e)}")
+                return self.json_fixer.fix_json(content)
+            else :
+                logger.error(f"Sub JSON 파싱 오류: {str(e)}")
+                return self.json_fixer.fix_subtask_json(content)                
         except Exception as e:
             logger.error(f"응답 파싱 중 오류: {str(e)}")
             return {"error": str(e)}
