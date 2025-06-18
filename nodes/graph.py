@@ -64,7 +64,7 @@ class MeetingWorkflow:
                 'AI': None,
                 'BE': None,
                 'FE': None,
-                'CL': None,
+                'CLOUD': None,
                 'error': None,
                 'status': 'pending',
                 'count' : 0
