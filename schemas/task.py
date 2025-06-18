@@ -15,3 +15,4 @@ class TaskState(TypedDict, total=False):
     error: Optional[str]
     status: Optional[str]
     count: int
+    routes :Optional[List[str]]
