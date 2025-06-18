@@ -39,3 +39,9 @@ API_DESCRIPTION = "API for processing wiki summaries and meeting notes"
 API_VERSION = "1.0.0"
 
 USER_INFO_DB_URL=os.getenv("User_info_db")
+
+# AWS S3
+AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
+AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+AWS_REGION = os.getenv("AWS_REGION")

@@ -16,7 +16,8 @@ torch>=2.1.0
 chromadb
 # git
 GitPython
-
+# aws
+boto3
 
 fastapi
 uvicorn
@@ -38,3 +39,4 @@ prometheus-client
 
 # 시간 처리
 pytz
+
