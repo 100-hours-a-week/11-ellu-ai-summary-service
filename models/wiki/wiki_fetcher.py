@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 class WikiFetcher:
     def __init__(self, project_id: int, url: str):
+        github_token = os.getenv("GITHUB_TOKEN")
+
         self.project_id = project_id
         
         # S3 설정
@@ -29,11 +31,16 @@ class WikiFetcher:
         if url:
             if url.endswith("/wiki"):
                 base_url = url[:-5]
-                self.url = f"{base_url}.wiki.git"
+                if github_token:
+                    parsed_url = base_url.replace("https://github.com/", f"https://{github_token}@github.com/")
+                    self.url = f"{parsed_url}.wiki.git"
+                else:
+                    self.url = f"{base_url}.wiki.git"
             else:
                 raise ValueError(f"유효하지 않은 URL: {url}. '/wiki' 형태의 주소를 넣어주세요.")
             
         logger.info(f"[WikiFetcher] URL: {self.url}, S3 Prefix: {self.s3_prefix}")
+
 
     def _upload_to_s3(self, repo_path):
         try:
