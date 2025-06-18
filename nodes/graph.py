@@ -56,6 +56,7 @@ class MeetingWorkflow:
 
     def run(self, meeting_notes: str, project_id: int, position: list):
         try:
+            position=list(set(position))
             init_state = {
                 'meeting_note': meeting_notes,
                 'project_id': project_id,
