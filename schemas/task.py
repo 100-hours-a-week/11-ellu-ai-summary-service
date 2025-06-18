@@ -9,9 +9,10 @@ class TaskState(TypedDict, total=False):
     AI: Optional[List[str]]
     BE: Optional[List[str]]
     FE: Optional[List[str]]
-    CL: Optional[List[str]]
+    CLOUD: Optional[List[str]]
     validation_result: Optional[str]
     feedback: Optional[str]
     error: Optional[str]
     status: Optional[str]
     count: int
+    routes :Optional[List[str]]

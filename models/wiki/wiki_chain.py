@@ -78,27 +78,24 @@ class WikiSummarizer:
     async def summarize_diff_files(self, state: dict) -> dict:
         logger.info(f"Starting wiki summarization for project_id: {state.project_id}")
         fetcher = WikiFetcher(state.project_id, state.url)
-        changed_files = fetcher.get_diff_files()
-        logger.info(f"Summarizing {len(changed_files)} files")
+        
+        file_contents = fetcher.get_diff_files()
+        logger.info(f"Summarizing {len(file_contents)} files")
 
         all_embedding_log_ids = []
 
-        for path in changed_files:
-            with open(path, "r") as f:
-                content = f.read()
-            
+        for relative_path, content in file_contents.items():
             result = self.summarize_wiki({
                 "project_id": state.project_id,
-                "content": content,
+                "content": content, 
                 "url": state.url,
                 "updated_at": datetime.now(pytz.timezone("Asia/Seoul")).isoformat(),
-                "document_path": path,
+                "document_path": relative_path,
             })
             if result and result.get("embedding_log_id"):
                 all_embedding_log_ids.append(result["embedding_log_id"])
 
         return {
-            "message": f"wiki: {len(changed_files)} files summarized",
+            "message": f"wiki: {len(file_contents)} files summarized",
             "embedding_log_ids_processed": all_embedding_log_ids 
         }
-        

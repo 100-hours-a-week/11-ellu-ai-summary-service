@@ -41,7 +41,7 @@ class JsonFixer:
         except Exception as e:
             logger.error(f"json_fixer 파일에서 main task JSON 수정 실패: {str(e)}")
             # 기본 구조 반환
-            return {"AI": [], "BE": [], "FE": [], "CL": []}
+            return {"AI": [], "BE": [], "FE": [], "CLOUD": []}
 
     def fix_subtask_json(self, raw_text, position, tasks) -> list:
         """서브 태스크 JSON 수정"""

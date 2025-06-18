@@ -19,12 +19,12 @@ class valid_json :
             return {
                 position: [str(item).strip() for item in parsed.get(position, []) if item and str(item).strip()]
                 if isinstance(parsed.get(position), list) else []
-                for position in ["AI", "BE", "FE", "CL"]
+                for position in ["AI", "BE", "FE", "CLOUD"]
             }
             
         except (json.JSONDecodeError, AttributeError) as e:
             logger.error(f"JSON 검증 오류: {e}")
-            return {"AI": [], "BE": [], "FE": [], "CL": []}
+            return {"AI": [], "BE": [], "FE": [], "CLOUD": []}
 
     def validate_subtask_json(self, response) -> list:
         """서브 태스크 JSON 유효성 검사 및 보완"""
