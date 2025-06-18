@@ -27,11 +27,11 @@ class Json_Parsing_Prompts:
 
 🔹 **입력 데이터 특성:**
 - 회의록 분석 결과로 생성된 포지션별 작업 분류 데이터
-- 예상 형식: {"AI": [...], "BE": [...], "FE": [...], "CL": [...]}
+- 예상 형식: {"AI": [...], "BE": [...], "FE": [...], "CLOUD": [...]}
 
 🔹 **수정 규칙:**
 1. **구조 복원**: 누락된 중괄호, 대괄호, 쉼표 추가
-2. **키 표준화**: 포지션 키는 반드시 "AI", "BE", "FE", "CL"로 통일
+2. **키 표준화**: 포지션 키는 반드시 "AI", "BE", "FE", "CLOUD"로 통일
 3. **값 정리**: 배열 내 문자열은 따옴표로 감싸기
 4. **불필요한 요소 제거**: 주석, 설명문, 마크다운 코드 블록 제거
 5. **완전성 보장**: 4개 포지션 키가 모두 존재하도록 보장
@@ -50,7 +50,7 @@ class Json_Parsing_Prompts:
 
 🔹 **예시:**
 입력: `{AI: [사용자 분석], BE: [API 개발, 데이터베이스 설계}}`
-출력: `{"AI": ["사용자 분석"], "BE": ["API 개발", "데이터베이스 설계"], "FE": [], "CL": []}`"""),
+출력: `{"AI": ["사용자 분석"], "BE": ["API 개발", "데이터베이스 설계"], "FE": [], "CLOUD": []}`"""),
             
             HumanMessage(content=f"""다음 텍스트를 올바른 JSON 형식으로 수정해주세요:
 
@@ -59,7 +59,7 @@ class Json_Parsing_Prompts:
 
 **요구사항:**
 1. 포지션별 작업 분류 JSON 형태로 수정
-2. AI, BE, FE, CL 키 모두 포함
+2. AI, BE, FE, CLOUD 키 모두 포함
 3. 각 키의 값은 문자열 배열
 4. 유효한 JSON 형식만 반환 (설명 없음)
 
@@ -87,7 +87,7 @@ class Json_Parsing_Prompts:
 1. **구조 복원**: 배열과 객체 구조 정확히 복원
 2. **필수 키 보장**: position, task, subtasks 키 모두 포함
 3. **데이터 타입 정확성**: 
-   - position: 문자열 (AI/BE/FE/CL)
+   - position: 문자열 (AI/BE/FE/CLOUD)
    - task: 문자열 (원본 작업명)
    - subtasks: 문자열 배열
 4. **불필요한 요소 제거**: 설명문, 주석, 마크다운 제거
@@ -127,7 +127,7 @@ class Json_Parsing_Prompts:
         
         Args:
             raw_text: 수정할 원본 텍스트
-            position: 포지션 정보 (AI/BE/FE/CL)
+            position: 포지션 정보 (AI/BE/FE/CLOUD)
             tasks: 태스크 정보
             
         Returns:

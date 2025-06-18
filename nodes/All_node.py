@@ -132,7 +132,7 @@ class NodeHandler:
                 "ai": "generate_AI_subtasks",
                 "be": "generate_BE_subtasks",
                 "fe": "generate_FE_subtasks",
-                "cl": "generate_Cloud_subtasks",
+                "cloud": "generate_Cloud_subtasks",
             }
             if state['validation_result'] == "pass" or state['count'] == 4:
                 if state['count'] == 4 :
@@ -218,4 +218,4 @@ class NodeHandler:
         return self.generate_position_response(state, "FE")
 
     def generate_Cloud_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "CL") 
+        return self.generate_position_response(state, "CLOUD") 
