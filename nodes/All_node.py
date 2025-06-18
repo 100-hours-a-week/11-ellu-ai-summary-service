@@ -126,33 +126,58 @@ class NodeHandler:
         
         return "\n".join(feedback_parts)
 
-    def route_to_subtasks(self, state: TaskState) -> list[str]:
-        
-            mapping = {
-                "ai": "generate_AI_subtasks",
-                "be": "generate_BE_subtasks",
-                "fe": "generate_FE_subtasks",
-                "cloud": "generate_Cloud_subtasks",
-            }
-            if state['validation_result'] == "pass" or state['count'] == 4:
-                if state['count'] == 4 :
-                    meeting_note = state["meeting_note"]
-                    prompt = self.prompt.get_llm_invoke_prompt(meeting_note)
-                    
-                    response = self.llm.invoke(prompt)
-                    parsed = self.valid(response)
-                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
-                    logger.info(f"서브태스크 라우팅 성공 - {len(routes)}개 경로: {routes}")
-                    state['main_task']= parsed
-                    return routes
-                    
+    def get_routes_from_state(self, state: TaskState) -> list[str]:
+        return state.get('routes', [])
 
-                else:
+    def route_to_subtasks(self, state: TaskState) -> dict:
+        """서브태스크 라우팅 로직"""
+        mapping = {
+            "ai": "generate_AI_subtasks",
+            "be": "generate_BE_subtasks", 
+            "fe": "generate_FE_subtasks",
+            "cloud": "generate_Cloud_subtasks",
+        }
+        
+        # 검증 통과 또는 최대 재시도 횟수 도달
+        if state['validation_result'] == "pass" or state['count'] >= 4:
+            
+            # 최대 재시도 도달 시 강제로 LLM 재생성
+            if state['count'] >= 4:
+                logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
+                try:
+                    # meeting_note = state["meeting_note"]
+                    # prompt = self.prompt.get_llm_invoke_prompt(meeting_note)
+                    # response = self.llm.invoke(prompt)
+                    
+                    # # 올바른 메서드 호출
+                    # parsed = self.valid.validate_main_task_json(response)
+                    
+                    # 상태 업데이트를 반환값으로 처리
                     routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
-                    logger.info(f"서브태스크 라우팅 성공 - {len(routes)}개 경로: {routes}")
-                    return routes
-            else :
-                return ["retry_node"]
+                    # logger.info(f"강제 재생성 후 라우팅 - {len(routes)}개 경로: {routes} parsed : {parsed}")
+                    logger.info(f"강제 재생성 후 라우팅 - {len(routes)}개 경로: {routes}")
+                    return {'routes': routes}
+                    # return {
+                    #     'main_task': parsed,  # 상태 업데이트
+                    #     'routes': routes      # 라우팅 정보
+                    # }
+                    
+                except Exception as e:
+                    logger.error(f"강제 재생성 중 오류: {str(e)}")
+                    # 오류 발생 시 기존 데이터로 진행
+                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                    return {'routes': routes}
+            
+            # 정상 통과 시
+            else:
+                routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
+                return {'routes': routes}
+        
+        # 재시도 필요
+        else:
+            logger.info(f"검증 실패 - 재시도 진행 (현재 횟수: {state['count']})")
+            return {'routes': ["retry_node"]}
 
 
     def retry(self, state: TaskState) -> dict:
