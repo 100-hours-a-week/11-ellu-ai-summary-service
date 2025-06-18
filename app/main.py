@@ -49,21 +49,28 @@ app = FastAPI(
 setup_middleware(app)
 
 # Utility functions
-def validate_github_url(url: str) -> bool:
+async def validate_github_url_http(url: str) -> bool:
     """GitHub 위키 URL 검증"""
     if not url.endswith("/wiki"):
+        logger.error(f"URL does not end with '/wiki': {url}")
         return False
     try:
         base_url = url[:-5]
-        git_url = f"{base_url}.wiki.git"
-        subprocess.run(
-            ["git", "ls-remote", git_url], 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            check=True
-        )
-        return True
-    except subprocess.CalledProcessError:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.head(base_url)
+            
+        if response.status_code == 200:
+            logger.info(f"Repository accessible: {base_url}")
+            return True
+        else:
+            logger.warning(f"Repository not accessible: {base_url} (status: {response.status_code})")
+            return False
+            
+    except httpx.TimeoutException:
+        logger.error(f"HTTP request timed out for {base_url}")
+        return False
+    except Exception as e:
+        logger.error(f"HTTP validation failed for {base_url}: {e}")
         return False
 
 # Callback functions
@@ -181,11 +188,10 @@ async def summarize_wiki(
     if not chroma_client:
         raise_chroma_unavailable()
     
-    # URL 검증
-    if not validate_github_url(input.url):
+    # Use HTTP-based validation instead of git
+    if not await validate_github_url_http(input.url):
         raise_invalid_wiki_url()
     
-    # 백그라운드 실행
     background_tasks.add_task(process_and_callback, input, wiki_chain)
     return {"message": "Wiki summarization started"}
 
