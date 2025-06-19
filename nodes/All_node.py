@@ -46,7 +46,9 @@ class NodeHandler:
             for i in list(parsed.keys()):
                 if parsed[i] == []:
                     del parsed[i]
+
             return {'main_task': parsed,'project_position' : list(parsed.keys())} 
+
         except Exception as e:
             logger.error(f"응답 생성 중 오류: {str(e)}")
             return {'error': str(e)}
@@ -151,7 +153,9 @@ class NodeHandler:
             
             # 정상 통과 시
             
+
                 routes = [mapping[p.lower()] for p in state['project_position'] if p.lower() in mapping]
+
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
         elif   state['count'] >= 2:
@@ -176,7 +180,7 @@ class NodeHandler:
                         'main_task': parsed,  # 상태 업데이트
                         'routes': routes,
                         'project_position' :  position   # 라우팅 정보
-                    }
+ }
                     
                 except Exception as e:
                     logger.error(f"강제 재생성 중 오류: {str(e)}")

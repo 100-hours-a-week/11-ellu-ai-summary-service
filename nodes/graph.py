@@ -60,7 +60,7 @@ class MeetingWorkflow:
             init_state = {
                 'meeting_note': meeting_notes,
                 'project_id': project_id,
-                'position': position,
+                'position': None,
                 'prompt': None,
                 'main_task': None,     
                 'AI': None,
@@ -71,6 +71,7 @@ class MeetingWorkflow:
                 'status': 'pending',
                 'count' : 0,
                 'project_position':None
+
             }
             result = self.graph.invoke(init_state)
             
