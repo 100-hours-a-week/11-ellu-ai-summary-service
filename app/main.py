@@ -105,7 +105,7 @@ async def meeting_note_callback(project_id: int, status: str, task_data: dict = 
         async with httpx.AsyncClient() as client:
             response = await client.post(backend_callback_url, json=callback_payload)
             response.raise_for_status()
-            logger.info(f"SEND RESPONSE: {response.json()}")
+            
             logger.info(f"회의록 콜백 전송 성공 - project_id: {project_id}")
     except Exception as e:
         logger.error(f"회의록 콜백 전송 실패 - project_id: {project_id}, 오류: {e}")
