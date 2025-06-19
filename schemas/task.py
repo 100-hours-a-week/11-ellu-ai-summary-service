@@ -3,7 +3,7 @@ from typing import TypedDict, List, Dict, Optional, Union
 class TaskState(TypedDict, total=False):
     meeting_note: str
     project_id: int
-    position: List[str]
+    position: Optional[List[str]]
     prompt: Optional[Dict[str, Union[str, List[Dict[str, str]]]]]
     main_task: Optional[Dict[str, List[str]]]
     AI: Optional[List[str]]
@@ -16,3 +16,5 @@ class TaskState(TypedDict, total=False):
     status: Optional[str]
     count: int
     routes :Optional[List[str]]
+    project_position:List[str]
+
