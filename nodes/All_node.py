@@ -29,7 +29,7 @@ class NodeHandler:
             meeting_note = state["meeting_note"]
             system_prompt = self.prompt.get_main_prompt()
             user_prompt = self.prompt.get_user_prompt(meeting_note)
-            result = {'prompt': {'main_task': [system_prompt, user_prompt]}}
+            result = {'prompt':  [system_prompt, user_prompt]}
             logger.info(f"핵심 태스크 추출 성공 - 회의록 길이: {len(meeting_note)} 글자")
             return result
         except Exception as e:
@@ -38,10 +38,15 @@ class NodeHandler:
 
     def generate_response(self, state: TaskState) -> dict:
         try:
-            chat = state['prompt']['main_task']
+            chat = state['prompt']
             parsed = self.task_model.run_model_and_parse(chat,"main")
+            logger.info(f"parsed:{parsed}")
+             # 빈 배열의 키 제거
             logger.info("메인 태스크 응답 생성 성공")
-            return {'main_task': parsed}
+            for i in list(parsed.keys()):
+                if parsed[i] == []:
+                    del parsed[i]
+            return {'main_task': parsed,'position' : list(parsed.keys())} 
         except Exception as e:
             logger.error(f"응답 생성 중 오류: {str(e)}")
             return {'error': str(e)}
@@ -139,40 +144,45 @@ class NodeHandler:
         }
         
         # 검증 통과 또는 최대 재시도 횟수 도달
-        if state['validation_result'] == "pass" or state['count'] >= 4:
+        if state['validation_result'] == "pass":
             
             # 최대 재시도 도달 시 강제로 LLM 재생성
-            if state['count'] >= 4:
+
+            
+            # 정상 통과 시
+            
+                routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
+                return {'routes': routes}
+        elif   state['count'] >= 2:
                 logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
                 try:
-                    # meeting_note = state["meeting_note"]
-                    # prompt = self.prompt.get_llm_invoke_prompt(meeting_note)
-                    # response = self.llm.invoke(prompt)
+                    meeting_note = state["meeting_note"]
+                    prompt = self.prompt.get_llm_invoke_prompt(meeting_note)
+                    response = self.llm.invoke(prompt)
                     
-                    # # 올바른 메서드 호출
-                    # parsed = self.valid.validate_main_task_json(response)
-                    
+                    # 올바른 메서드 호출
+                    parsed = self.valid.validate_main_task_json(response)
+                    for i in list(parsed.keys()):  # 빈배열의 키 삭제
+                        if parsed[i] == []:
+                            del parsed[i]
+                    position = list(parsed.keys())
                     # 상태 업데이트를 반환값으로 처리
-                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
-                    # logger.info(f"강제 재생성 후 라우팅 - {len(routes)}개 경로: {routes} parsed : {parsed}")
-                    logger.info(f"강제 재생성 후 라우팅 - {len(routes)}개 경로: {routes}")
-                    return {'routes': routes}
-                    # return {
-                    #     'main_task': parsed,  # 상태 업데이트
-                    #     'routes': routes      # 라우팅 정보
-                    # }
+                    routes = [mapping[p.lower()] for p in position if p.lower() in mapping]
+                    logger.info(f"강제 재생성 후 라우팅 - {len(routes)}개 경로: {routes} parsed : {parsed}")
+                    # logger.info(f"강제 재생성 후 라우팅 - {len(routes)}개 경로: {routes}")
+                    # return {'routes': routes}
+                    return {
+                        'main_task': parsed,  # 상태 업데이트
+                        'routes': routes,
+                        'position' :  position   # 라우팅 정보
+                    }
                     
                 except Exception as e:
                     logger.error(f"강제 재생성 중 오류: {str(e)}")
                     # 오류 발생 시 기존 데이터로 진행
                     routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
                     return {'routes': routes}
-            
-            # 정상 통과 시
-            else:
-                routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
-                logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
-                return {'routes': routes}
         
         # 재시도 필요
         else:
@@ -187,7 +197,7 @@ class NodeHandler:
             feedback = state["feedback"]
             
             prompt_list = self.prompt.get_retry_prompts(meeting_note, main_task, feedback)
-            result = {'prompt': {'main_task': prompt_list},'count':state['count']+1}
+            result = {'prompt':  prompt_list,'count':state['count']+1}
             logger.info("재시도 프롬프트 생성 성공")
             return result
 
@@ -195,37 +205,37 @@ class NodeHandler:
             logger.error(f"재시도 중 오류: {str(e)}")
             return {'error': str(e)}
 
-    def generate_all_position_responses(self, state: TaskState) -> dict:
-        try:
-            positions = state["position"]
-            logger.info(f"전체 포지션 응답 생성 시작 - 대상 포지션: {positions}")
+    # def generate_all_position_responses(self, state: TaskState) -> dict:
+    #     try:
+    #         positions = state["position"]
+    #         logger.info(f"전체 포지션 응답 생성 시작 - 대상 포지션: {positions}")
             
-            results = {}
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_key = {
-                    executor.submit(self.generate_position_response, state, pos): pos
-                    for pos in positions
-                }
+    #         results = {}
+    #         with concurrent.futures.ThreadPoolExecutor() as executor:
+    #             future_to_key = {
+    #                 executor.submit(self.generate_position_response, state, pos): pos
+    #                 for pos in positions
+    #             }
                 
-                completed_count = 0
-                for future in concurrent.futures.as_completed(future_to_key):
-                    key = future_to_key[future]
-                    try:
-                        result = future.result()
-                        results.update(result)
-                        completed_count += 1
-                        logger.debug(f"포지션 {key} 처리 완료 ({completed_count}/{len(positions)})")
-                    except Exception as e:
-                        logger.error(f"포지션 {key} 처리 중 오류: {str(e)}")
-                        results[key] = {'error': str(e)}
+    #             completed_count = 0
+    #             for future in concurrent.futures.as_completed(future_to_key):
+    #                 key = future_to_key[future]
+    #                 try:
+    #                     result = future.result()
+    #                     results.update(result)
+    #                     completed_count += 1
+    #                     logger.debug(f"포지션 {key} 처리 완료 ({completed_count}/{len(positions)})")
+    #                 except Exception as e:
+    #                     logger.error(f"포지션 {key} 처리 중 오류: {str(e)}")
+    #                     results[key] = {'error': str(e)}
             
-            success_count = sum(1 for v in results.values() if not isinstance(v, dict) or 'error' not in v)
-            logger.info(f"전체 포지션 응답 생성 완료 - 성공: {success_count}/{len(positions)}")
+    #         success_count = sum(1 for v in results.values() if not isinstance(v, dict) or 'error' not in v)
+    #         logger.info(f"전체 포지션 응답 생성 완료 - 성공: {success_count}/{len(positions)}")
             
-            return results
-        except Exception as e:
-            logger.error(f"전체 포지션 응답 생성 중 오류: {str(e)}")
-            return {'error': str(e)}
+    #         return results
+    #     except Exception as e:
+    #         logger.error(f"전체 포지션 응답 생성 중 오류: {str(e)}")
+    #         return {'error': str(e)}
         
     def route_after_validation(self, state: TaskState) -> list[str]:
         if state['validation_result'] == 'fail':

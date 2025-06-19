@@ -7,6 +7,14 @@ logger = logging.getLogger(__name__)
 
 class valid_json :
 
+    def remove_empty_list_keys(dictionary: dict) -> dict:
+  
+        return {
+            key: value for key, value in dictionary.items()
+            if not (isinstance(value, list) and len(value) == 0)
+        }
+
+
     def validate_main_task_json(self, response) -> dict:
         """메인 태스크 JSON 유효성 검사 및 보완 (간결 버전)"""
         
@@ -25,6 +33,8 @@ class valid_json :
         except (json.JSONDecodeError, AttributeError) as e:
             logger.error(f"JSON 검증 오류: {e}")
             return {"AI": [], "BE": [], "FE": [], "CLOUD": []}
+        
+    
 
     def validate_subtask_json(self, response) -> list:
         """서브 태스크 JSON 유효성 검사 및 보완"""
