@@ -16,5 +16,5 @@ class TaskState(TypedDict, total=False):
     status: Optional[str]
     count: int
     routes :Optional[List[str]]
-    project_position:List[str]
+    project_position:Optional[List[str]]
 
