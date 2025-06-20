@@ -1,3 +1,32 @@
+# [1.2.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.1.0...v1.2.0) (2025-06-20)
+
+
+### Bug Fixes
+
+* callback 함수 수정([#114](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/114)) ([094ab99](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/094ab99f73c7d1c37bbed61df482dfbd52fb3c38))
+* container git error 해결 ([b4747d1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/b4747d1b24d63fa0223ddb814b73ec7b760692d4))
+* psycopg2 패키지 빌드 에러 수정 ([1449b86](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/1449b862f04dfe2dc34eb27fe29d07c244a19b13))
+* revert stage.yml ([de781d3](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/de781d36649c15d101cf3573fe31661710b74960))
+* stage.yml ([#147](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/147)) ([2263395](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/22633955654b07dd5c200a1cd321b27c288ebd02))
+* url수신 오류 해결([#108](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/108)) ([db88f9b](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/db88f9b627c046f8ea0c459dd02d5035a32e4644))
+* 빠져있던 prometheus 라이브러리 import문 추가 ([0e528a2](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/0e528a243f04a66b3509e15ff229b3c352b87675))
+* 위키 가져오는 부분 비활성화 및 return 양식 수정([#110](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/110)) ([ba92266](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/ba92266f8e3682a4f84612c9f133657cec77db49))
+
+
+### Features
+
+* callback 함수 추가([#112](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/112)) ([59010f3](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/59010f36cd17db225e66d3e38584addcf2165c49))
+* chroma 버전 관리 ([#104](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/104)) ([a0cec2e](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/a0cec2ecee5bdadf729948cef4d2f70b59b8d9fd))
+* git 저장소 변경([#99](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/99)) ([b677e44](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/b677e4418a5324a9ee91545fe02e46480bb22552))
+* JSON parsing 노드 및 검증 기능 개선 ([9bb9e61](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/9bb9e61ba392f2071a7ffdfa95745ccefc569e61)), closes [#127](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/127)
+* JSON parsing 노드 및 검증 기능 개선 ([cb3475a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/cb3475a785334e674a287243c51e6bbaa75006b4)), closes [#127](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/127)
+* OpenTelemetry 트레이싱을 위한 클라이언트 및 SDK 추가 ([dff3f93](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/dff3f939d8da82127685129c59e9535a0fe72586))
+* url기반 wiki 주소([#97](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/97)) ([0137bad](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/0137bada491ca622f1deb1ff62dbf3150ff944a5))
+* wikifetcher클래스구현([#88](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/88)) ([65ad81a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/65ad81a08bd3eb125002f9a4b8bf7bc9d56617bc))
+* WikiRetreiver클래스 구현([#90](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/90)) ([d65af0e](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/d65af0ed1a3a04f391e4a0c4a24d86b997314d8e))
+* 검증 노드 프롬프트 개선([#86](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/86)) ([fcffe37](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/fcffe37774efbba16e8173c69c3fde570b3f2471))
+* 프롬프팅 미세 조정 및 오류 수정([#116](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/116)) ([2934c0a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/2934c0a05b7a5d013b5fb4082230ec863531e18c))
+
 # [1.1.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.0.0...v1.1.0) (2025-06-05)
 
 
