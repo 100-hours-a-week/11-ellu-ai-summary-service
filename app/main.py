@@ -131,10 +131,10 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
             project_id=project_id,
             position=input.position,
         )
-        
+        logger.info(f"result : {result}")
         # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
         response_data = {"message": "subtasks_created", "detail": []}
-        for position in input.position:
+        for position in result['position']:
             if result.get(position):  # 해당 포지션에 결과가 있는 경우만
                 response_data["detail"].extend(result[position])
         

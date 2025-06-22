@@ -1,11 +1,14 @@
-name: Docker Image For Production
+name: Deploy AI Summary to Stage
 on: 
   push:
     branches:
       - stage
+
 env:
-  PROJECT_ID: capable-range-455705-h4
+  DEVELOP_PROJECT_ID: primeval-rain-460507-n3
   GAR_LOCATION: asia-northeast3
+  INSTANCE_NAME: looper-prod-app-server-1
+  ZONE: asia-northeast3-a
   REPOSITORY: looper
   SERVICE: ai-summary
   REGISTRY: asia-northeast3-docker.pkg.dev/capable-range-455705-h4/looper
@@ -13,13 +16,11 @@ env:
   VERSION: ${{ github.sha }}
 
 jobs:
-  package:
-    name: Package and Publish
+  # 이미지 빌드 및 푸시 단계
+  build-and-push:
+    name: Build and Push
     if: ${{ github.ref == 'refs/heads/stage' }}
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -48,44 +49,27 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-  # cloud run 배포 용 docker 이미지 push - stage 서버 용
-  deploy-to-personal-gar:
-    name: Deploy to Personal GAR
-    if: ${{ github.ref == 'refs/heads/stage' }}
+  # 서버 배포 단계
+  deploy:
+    name: Deploy to Server
+    needs: build-and-push
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      id-token: write 
-    env:
-      PERSONAL_PROJECT_ID: looper-dev-463208
-      PERSONAL_GAR_LOCATION: asia-southeast1
-      PERSONAL_REPOSITORY: ai-summary-service
-      PERSONAL_SERVICE: ai-summary
-      PERSONAL_REGISTRY: asia-southeast1-docker.pkg.dev/looper-dev-463208/ai-summary-service
-      PERSONAL_IMAGE_NAME: app
-      PERSONAL_VERSION: stage-latest
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
       - name: Google Auth
         uses: 'google-github-actions/auth@v2'
         with:
-          credentials_json: '${{ secrets.PERSONAL_GCP_SA_KEY }}'
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
 
-      - name: Configure Docker for GCP
-        run: gcloud auth configure-docker ${{ env.PERSONAL_GAR_LOCATION }}-docker.pkg.dev
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: Build Docker image
+      - name: Deploy via IAP
         run: |
-          docker build -t ${{ env.PERSONAL_REGISTRY }}/${{ env.PERSONAL_IMAGE_NAME }}:${{ env.PERSONAL_VERSION }} .
-                       
-      - name: Publish container image
-        run: |
-          docker push ${{ env.PERSONAL_REGISTRY }}/${{ env.PERSONAL_IMAGE_NAME }}:${{ env.PERSONAL_VERSION }}
+          gcloud compute ssh ${{ env.INSTANCE_NAME }} \
+            --project=${{ env.DEVELOP_PROJECT_ID }} \
+            --zone=${{ env.ZONE }} \
+            --tunnel-through-iap \
+            --ssh-flag="-o StrictHostKeyChecking=no" \
+            --command="cd /opt && \
+              sudo docker compose pull looper-ai && \
+              sudo docker compose up -d looper-ai"

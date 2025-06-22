@@ -46,7 +46,9 @@ class NodeHandler:
             for i in list(parsed.keys()):
                 if parsed[i] == []:
                     del parsed[i]
-            return {'main_task': parsed,'position' : list(parsed.keys())} 
+
+            return {'main_task': parsed,'project_position' : list(parsed.keys())} 
+
         except Exception as e:
             logger.error(f"응답 생성 중 오류: {str(e)}")
             return {'error': str(e)}
@@ -80,7 +82,7 @@ class NodeHandler:
                 
                 parsed = self.task_model.run_model_and_parse(chat, "sub")
             
-                outputs.append(parsed) 
+                outputs.extend(parsed) 
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")
             return {key: outputs}
@@ -151,7 +153,9 @@ class NodeHandler:
             
             # 정상 통과 시
             
-                routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+
+                routes = [mapping[p.lower()] for p in state['project_position'] if p.lower() in mapping]
+
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
         elif   state['count'] >= 2:
@@ -175,13 +179,13 @@ class NodeHandler:
                     return {
                         'main_task': parsed,  # 상태 업데이트
                         'routes': routes,
-                        'position' :  position   # 라우팅 정보
-                    }
+                        'project_position' :  position   # 라우팅 정보
+ }
                     
                 except Exception as e:
                     logger.error(f"강제 재생성 중 오류: {str(e)}")
                     # 오류 발생 시 기존 데이터로 진행
-                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                    routes = [mapping[p.lower()] for p in state['project_position'] if p.lower() in mapping]
                     return {'routes': routes}
         
         # 재시도 필요

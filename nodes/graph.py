@@ -70,7 +70,8 @@ class MeetingWorkflow:
                 'error': None,
                 'status': 'pending',
                 'count' : 0,
-                'project_position':position
+                'project_position':None
+
             }
             result = self.graph.invoke(init_state)
             
