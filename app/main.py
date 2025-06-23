@@ -134,8 +134,7 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
         logger.info(f"result : {result}")
         # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
         response_data = {"message": "subtasks_created", "detail": []}
-        for position in result['position']:
-            if result.get(position):  # 해당 포지션에 결과가 있는 경우만
+        for position in result['project_position']:
                 response_data["detail"].extend(result[position])
         
         # 사용자 입출력 데이터 DB 저장
@@ -158,9 +157,9 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
         await meeting_note_callback(project_id, "completed", response_data)
         
     except Exception as e:
-        logger.error(f"회의록 처리 실패 - project_id: {project_id}, 오류: {e}")
+        logger.error(f"회의록 DB 저장장 처리 실패 - project_id: {project_id}, 오류: {e}")
         # 실패 콜백 전송
-        await meeting_note_callback(project_id, "failed")
+        await meeting_note_callback(project_id, "failed", response_data)
 
 # API endpoints
 @app.get("/", status_code=status.HTTP_200_OK)
