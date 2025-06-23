@@ -40,13 +40,13 @@ class NodeHandler:
         try:
             chat = state['prompt']
             parsed = self.task_model.run_model_and_parse(chat,"main")
-            logger.info(f"parsed:{parsed}")
+            
              # 빈 배열의 키 제거
             logger.info("메인 태스크 응답 생성 성공")
             for i in list(parsed.keys()):
-                if parsed[i] == []:
+                if parsed[i] == [] or i not in ["AI","BE","CLOUD","FE"]:
                     del parsed[i]
-
+            logger.info(f"parsed:{parsed}")
             return {'main_task': parsed,'project_position' : list(parsed.keys())} 
 
         except Exception as e:
@@ -80,7 +80,7 @@ class NodeHandler:
 
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
                 
-                parsed = self.task_model.run_model_and_parse(chat, "sub")
+                parsed = self.task_model.run_model_and_parse(chat, "sub",task,key)
             
                 outputs.extend(parsed) 
             
