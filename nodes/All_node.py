@@ -77,7 +77,7 @@ class NodeHandler:
                 except Exception as e:
                     logger.error(f"Wiki retrieval failed for Project ID {state['project_id']}: {e}")
                     wiki_context = "" 
-                logger.info(f" wiki 내용: {wiki_result}")
+                # logger.info(f" wiki 내용: {wiki_result}")
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
                 
                 parsed = self.task_model.run_model_and_parse(chat, "sub",task,key)
