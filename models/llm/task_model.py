@@ -87,7 +87,8 @@ class Generate_llm_response:
                 
                 parsed = self.parse_response(raw,where,task,position)
                 return parsed
-            else:
+            else: # 메인 일 때때
+                
                                 # LLM 모델 실행
                 response = self.llm.invoke(chat)
                 
