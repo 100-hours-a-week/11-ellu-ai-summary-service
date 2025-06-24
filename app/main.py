@@ -194,6 +194,45 @@ async def summarize_wiki(
     background_tasks.add_task(process_and_callback, input, wiki_chain)
     return {"message": "Wiki summarization started"}
 
+
+
+@app.delete("/projects/{project_id}", status_code=status.HTTP_200_OK)
+async def delete_project(
+    project_id: int,
+    background_tasks: BackgroundTasks,
+    chroma_client=Depends(chroma_dependency)
+):
+    if not chroma_client:
+        raise_chroma_unavailable()
+    
+    background_tasks.add_task(delete_project_data, project_id)
+    return {
+        "message": "S3_deleted",
+        "data": None
+    }
+
+async def delete_project_data(project_id: int):
+    try:
+        # S3 삭제
+        from models.wiki.wiki_fetcher import WikiFetcher
+        fetcher = WikiFetcher(project_id, "")
+        s3_result = fetcher.delete_project_data()
+        
+        # ChromaDB 삭제
+        from vectordb.chroma_store import ChromaDBManager
+        chroma_manager = ChromaDBManager()
+        chroma_result = chroma_manager.delete_by_project_id(project_id)
+        
+        if s3_result and chroma_result:
+            logger.info(f"프로젝트 {project_id} 전체 AI 데이터 삭제 완료 (S3 + ChromaDB)")
+        else:
+            logger.warning(f"프로젝트 {project_id} 일부 삭제 실패 - S3: {s3_result}, ChromaDB: {chroma_result}")
+            
+    except Exception as e:
+        logger.error(f"프로젝트 {project_id} 삭제 중 오류: {e}")
+
+
+        
 @app.post("/projects/{project_id}/notes", status_code=status.HTTP_202_ACCEPTED)
 async def receive_meeting_note(
     project_id: int,

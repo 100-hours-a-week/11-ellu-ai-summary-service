@@ -10,9 +10,8 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 class WikiFetcher:
-    def __init__(self, project_id: int, url: str):
+    def __init__(self, project_id: int, url: str = None):
         github_token = os.getenv("GITHUB_TOKEN")
-
         self.project_id = project_id
         
         # S3 설정
@@ -23,8 +22,6 @@ class WikiFetcher:
             region_name=os.getenv("AWS_REGION")
         )
         self.bucket_name = os.getenv("S3_BUCKET_NAME")
-        
-        # 최적 S3 경로 찾기 (테스트에서 모든 경로가 작동했으므로 uploads 사용)
         self.s3_prefix = f"uploads/wikis/{project_id}/"
         
         # URL 처리
@@ -38,7 +35,9 @@ class WikiFetcher:
                     self.url = f"{base_url}.wiki.git"
             else:
                 raise ValueError(f"유효하지 않은 URL: {url}. '/wiki' 형태의 주소를 넣어주세요.")
-            
+        else:
+            self.url = None # 삭제 시 URL 불필요
+        
         logger.info(f"[WikiFetcher] URL: {self.url}, S3 Prefix: {self.s3_prefix}")
 
 
@@ -259,14 +258,14 @@ class WikiFetcher:
                     return {}
             
 
-    # def delete_project_data(self):
-    #     try:
-    #         self._clear_s3_folder()
-    #         logger.info(f"Successfully deleted all S3 data for project {self.project_id}")
-    #         return True
-    #     except Exception as e:
-    #         logger.error(f"S3 delete failed: {e}")
-    #         return False
+    def delete_project_data(self):
+        try:
+            self._clear_s3_folder()
+            logger.info(f"프로젝트 {self.project_id} S3 데이터 삭제 완료")            
+            return True
+        except Exception as e:
+            logger.error(f"프로젝트 {self.project_id} S3 데이터 삭제 실패: {e}")
+            return False
 
     # def get_project_info(self):
     #     try:
