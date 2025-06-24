@@ -21,7 +21,7 @@ class WikiRetriever:
         self.collection = self.chroma_client.get_or_create_collection(name="wiki_summaries")
 
 
-    def retrieve_wiki_context(self, task: str, project_id: int, k: int = 3) -> dict:
+    def retrieve_wiki_context(self, task: str, project_id: int, k: int = 1) -> dict:
         logger.info(f"Retrieving wiki context for task: '{task}' and project_id: {project_id}")
         
         try:
