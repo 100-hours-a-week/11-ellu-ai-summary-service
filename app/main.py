@@ -196,7 +196,7 @@ async def summarize_wiki(
 
 
 
-@app.delete("/projects/{project_id}", status_code=status.HTTP_200_OK)
+@app.delete("/projects/{project_id}/wiki", status_code=status.HTTP_200_OK)
 async def delete_project(
     project_id: int,
     background_tasks: BackgroundTasks,
