@@ -19,12 +19,14 @@ class WikiSummarizer:
     def __init__(
         self,
         model_name: str = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
-        embed_func=ChromaDBManager()
+        embed_func=None
     ):
+        if embed_func is None:
+            embed_func = ChromaDBManager()
         logger.info("Initializing WikiSummarizer...")
         self.embed_func = embed_func.embed_and_store
         logger.info("WikiSummarizer initialization complete")
-
+        
     def summarize_wiki(self, state: dict) -> dict:
         logger.info(f"Starting wiki summarization for project_id: {state.get('project_id')}")
         content = state.get("content")
