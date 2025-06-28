@@ -259,6 +259,34 @@ async def receive_meeting_note(
         "project_id": project_id
     }
 
+@app.get("/warmup", status_code=200)
+def warmup():
+    from app.dependencies import get_chroma_client
+    from vectordb.embed_model import CustomEmbeddingFunction
+
+    logger.info("[WARMUP] 시작")
+
+    # ChromaDB 연결 시도
+    try:
+        client = get_chroma_client()
+        if client:
+            client.heartbeat()
+            logger.info("[WARMUP] ChromaDB 연결 성공")
+        else:
+            logger.warning("[WARMUP] ChromaDB 클라이언트 없음")
+    except Exception as e:
+        logger.warning(f"[WARMUP] ChromaDB 예열 실패: {e}")
+
+    # 모델 로딩 시도
+    try:
+        embedder = CustomEmbeddingFunction()
+        embedder(["warmup"])  # dummy call
+        logger.info("[WARMUP] Hugging Face 모델 로딩 성공")
+    except Exception as e:
+        logger.warning(f"[WARMUP] 모델 예열 실패: {e}")
+
+    return {"status": "warmup complete"}
+
 @app.get("/metrics")
 async def metrics():
     """Prometheus metrics endpoint."""
