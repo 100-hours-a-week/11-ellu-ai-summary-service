@@ -32,3 +32,15 @@ class MeetingNote(BaseModel):
         if not v:
             raise ValueError("At least one position must be provided")
         return v
+
+
+class InsertInfo(BaseModel):
+    user_table_id: int
+    content: List[Dict[str, Any]]  # 리스트로 변경!
+
+    @validator('content')
+    def validate_content_not_empty(cls, v):
+        if not v:  # 빈 리스트 체크
+            raise ValueError("Content cannot be empty")
+        return v
+

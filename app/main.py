@@ -21,7 +21,7 @@ from .exceptions import (
     raise_invalid_wiki_url,
     raise_project_id_mismatch
 )
-from schemas.main_schema import WikiInput, MeetingNote
+from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
         )
         # logger.info(f"result : {result}")
         # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
-        response_data = {"message": "subtasks_created", "detail": []}
+        response_data = {"user_table_id" :0, "message": "subtasks_created", "detail": []}
         for position in result['project_position']:
                 response_data["detail"].extend(result[position])
         
@@ -149,6 +149,10 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
                         "user_input": input.content,
                         "user_output": json.dumps(response_data, ensure_ascii=False)
                     })
+                    query = text("SELECT MAX(id) FROM user_io")
+                    result = connection.execute(query)
+                    response_data["user_table_id"]=result.fetchone()[0]
+
                     logger.info("user_io 테이블에 데이터 정상 삽입 완료")
             except SQLAlchemyError as e:
                 logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
@@ -286,6 +290,43 @@ def warmup():
         logger.warning(f"[WARMUP] 모델 예열 실패: {e}")
 
     return {"status": "warmup complete"}
+
+
+@app.post("/projects/{user_table_id}/insert", status_code=status.HTTP_200_OK)
+async def insert_user_info(
+    user_table_id: int,
+    input: InsertInfo,
+    background_tasks: BackgroundTasks,
+    db_engine=Depends(database_dependency)
+):
+    if db_engine:
+        try:
+            with db_engine.begin() as connection:
+                query = text("""
+                    UPDATE user_io 
+                    SET user_choice = :user_choice
+                    WHERE id = :user_table_id
+                """)
+                connection.execute(query, {
+                    "user_choice": json.dumps(input.content, ensure_ascii=False),  # ✅ input.content로 수정
+                    "user_table_id": user_table_id
+                })
+
+                logger.info(f"user_io 테이블 ID {user_table_id}에 데이터 정상 업데이트 완료")
+                return {"status": "success", "message": "데이터가 업데이트되었습니다"}
+                
+        except SQLAlchemyError as e:
+            logger.error(f"user_io 테이블 업데이트 실패: {str(e)}")
+            return {"status": "error", "message": str(e)}
+        
+    #     # 성공 콜백 전송
+    #     await meeting_note_callback(project_id, "completed", response_data)
+        
+    # except Exception as e:
+    #     logger.error(f"회의록 DB 저장장 처리 실패 - project_id: {project_id}, 오류: {e}")
+    #     # 실패 콜백 전송
+    #     await meeting_note_callback(project_id, "failed", response_data)
+
 
 @app.get("/metrics")
 async def metrics():
