@@ -48,6 +48,24 @@ app = FastAPI(
 # Setup middleware
 setup_middleware(app)
 
+
+
+def detect_url_type(url: str) -> str:
+    if "/wiki" in url and "github.com" in url:
+        return "github_wiki"
+    else:
+        return "general_web"
+
+async def validate_general_url(url: str) -> bool:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.head(url)
+            return 200 <= response.status_code < 400
+    except Exception as e:
+        logger.error(f"URL 검증 실패: {url}, 오류: {e}")
+        return False
+    
+    
 # Utility functions
 async def validate_github_url_http(url: str) -> bool:
     """GitHub 위키 URL 검증"""
@@ -121,6 +139,31 @@ async def process_and_callback(input: WikiInput, wiki_chain):
     except Exception as e:
         logger.error(f"Wiki summarization failed for project_id={input.project_id}: {e}")
         await wiki_callback(input.project_id, "failed")
+async def process_web_and_callback(input: WikiInput, wiki_chain):
+    try:
+        from models.wiki.jina_processor import JinaProcessor
+        processor = JinaProcessor(input.project_id, input.url)
+        
+        file_contents = await processor.get_diff_files()
+        
+        if not file_contents:
+            raise Exception("콘텐츠를 가져올 수 없습니다")
+        
+        for relative_path, content in file_contents.items():
+            result = wiki_chain.summarize_wiki({
+                "project_id": input.project_id,
+                "content": content, 
+                "url": input.url,
+                "updated_at": input.updated_at,
+                "document_path": relative_path,
+            })
+        
+        await wiki_callback(input.project_id, "completed")
+        
+    except Exception as e:
+        logger.error(f"웹 콘텐츠 처리 실패 - project_id: {input.project_id}, 오류: {e}")
+        await wiki_callback(input.project_id, "failed")
+
 
 async def process_meeting_note_and_callback(input: MeetingNote, project_id: int, task_parser, db_engine):
     """회의록 처리 및 콜백 실행"""
@@ -187,16 +230,30 @@ async def summarize_wiki(
     chroma_client=Depends(chroma_dependency),
     wiki_chain=Depends(wiki_summarizer_dependency)
 ):
-    """위키 요약 처리"""
+    """위키 및 일반 웹사이트 처리 (자동 감지)"""
     if not chroma_client:
         raise_chroma_unavailable()
     
-    # Use HTTP-based validation instead of git
-    if not await validate_github_url_http(input.url):
-        raise_invalid_wiki_url()
+    url_type = detect_url_type(input.url)
     
-    background_tasks.add_task(process_and_callback, input, wiki_chain)
-    return {"message": "Wiki summarization started"}
+    if url_type == "github_wiki":
+        logger.info(f"GitHub Wiki 감지 - URL: {input.url}")
+        if not await validate_github_url_http(input.url):
+            raise_invalid_wiki_url()
+        
+        background_tasks.add_task(process_and_callback, input, wiki_chain)
+        
+    else:
+        logger.info(f"일반 웹사이트 감지 - URL: {input.url}")
+        if not await validate_general_url(input.url):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="접근할 수 없는 URL입니다"
+            )
+        
+        background_tasks.add_task(process_web_and_callback, input, wiki_chain)
+    
+    return {"message": "콘텐츠 처리가 시작되었습니다"}
 
 
 
