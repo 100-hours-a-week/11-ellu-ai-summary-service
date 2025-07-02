@@ -7,7 +7,6 @@ import subprocess
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-
 from .config import API_TITLE, API_DESCRIPTION, BE_URL
 from .middleware import setup_middleware
 from .dependencies import (
@@ -141,8 +140,8 @@ async def process_and_callback(input: WikiInput, wiki_chain):
         await wiki_callback(input.project_id, "failed")
 async def process_web_and_callback(input: WikiInput, wiki_chain):
     try:
-        from models.wiki.jina_processor import JinaProcessor
-        processor = JinaProcessor(input.project_id, input.url)
+        from models.wiki.doc_fetcher import DocFetcher
+        processor = DocFetcher(input.project_id, input.url)
         
         file_contents = await processor.get_diff_files()
         
@@ -223,6 +222,37 @@ def read_root(chroma_client=Depends(chroma_dependency)):
         logger.warning("ChromaDB client not available")
         return {"status": "degraded", "message": "ChromaDB not connected"}
 
+
+
+def is_allowed_domain(url: str) -> bool:
+    try:
+        if not url.startswith('https://'):
+            return False
+        
+        # URL에서 도메인 추출
+        domain_part = url[8:].split('/')[0].split('?')[0].split('#')[0]
+        
+        allowed_domains = [
+            'github.com',
+            'notion.com',
+            'notion.so', 
+            'notion.site',
+            'docs.google.com',
+        ]
+        
+        for domain in allowed_domains:
+            if domain_part == domain or domain_part.endswith('.' + domain):
+                return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"URL 검증 실패: {url}, 오류: {e}")
+        return False
+
+
+
+    
 @app.post("/ai/wiki", status_code=status.HTTP_202_ACCEPTED)
 async def summarize_wiki(
     input: WikiInput,
@@ -230,7 +260,7 @@ async def summarize_wiki(
     chroma_client=Depends(chroma_dependency),
     wiki_chain=Depends(wiki_summarizer_dependency)
 ):
-    """위키 및 일반 웹사이트 처리 (자동 감지)"""
+    """위키 및 일반 웹사이트 처리"""
     if not chroma_client:
         raise_chroma_unavailable()
     
@@ -245,6 +275,14 @@ async def summarize_wiki(
         
     else:
         logger.info(f"일반 웹사이트 감지 - URL: {input.url}")
+
+
+        if not is_allowed_domain(input.url):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="해당 도메인은 지원하지 않습니다. 지원 사이트: GitHub, Notion, Google Docs"
+            ) 
+
         if not await validate_general_url(input.url):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
