@@ -1,7 +1,7 @@
 import httpx
 import logging
 from typing import Dict
-from models.wiki.wiki_fetcher import WikiFetcher
+from models.wiki.fetcher.wiki_fetcher import WikiFetcher
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 import logging
 import json
 import httpx
-import subprocess
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -12,7 +11,7 @@ from .middleware import setup_middleware
 from .dependencies import (
     chroma_dependency,
     database_dependency, 
-    wiki_summarizer_dependency,
+    wiki_processor_dependency,
     meeting_workflow_dependency
 )
 from .exceptions import (
@@ -128,19 +127,20 @@ async def meeting_note_callback(project_id: int, status: str, task_data: dict = 
         logger.error(f"회의록 콜백 전송 실패 - project_id: {project_id}, 오류: {e}")
 
 # Background task functions
-async def process_and_callback(input: WikiInput, wiki_chain):
+async def process_and_callback(input: WikiInput, wiki_processor):
     """위키 처리 및 콜백 실행"""
     try:
-        await wiki_chain.summarize_diff_files(input)
+        await wiki_processor.process_diff_files(input)
         await wiki_callback(input.project_id, "completed")
     except ValueError as ve:
         logger.error(f"Invalid URL for project_id={input.project_id}: {ve}")
     except Exception as e:
         logger.error(f"Wiki summarization failed for project_id={input.project_id}: {e}")
         await wiki_callback(input.project_id, "failed")
-async def process_web_and_callback(input: WikiInput, wiki_chain):
+
+async def process_web_and_callback(input: WikiInput, wiki_processor):
     try:
-        from models.wiki.doc_fetcher import DocFetcher
+        from models.wiki.fetcher.doc_fetcher import DocFetcher
         processor = DocFetcher(input.project_id, input.url)
         
         file_contents = await processor.get_diff_files()
@@ -149,7 +149,7 @@ async def process_web_and_callback(input: WikiInput, wiki_chain):
             raise Exception("콘텐츠를 가져올 수 없습니다")
         
         for relative_path, content in file_contents.items():
-            result = wiki_chain.summarize_wiki({
+            result_wiki = wiki_processor.process_wiki({
                 "project_id": input.project_id,
                 "content": content, 
                 "url": input.url,
@@ -258,7 +258,7 @@ async def summarize_wiki(
     input: WikiInput,
     background_tasks: BackgroundTasks,
     chroma_client=Depends(chroma_dependency),
-    wiki_chain=Depends(wiki_summarizer_dependency)
+    wiki_processor=Depends(wiki_processor_dependency)
 ):
     """위키 및 일반 웹사이트 처리"""
     if not chroma_client:
@@ -271,7 +271,7 @@ async def summarize_wiki(
         if not await validate_github_url_http(input.url):
             raise_invalid_wiki_url()
         
-        background_tasks.add_task(process_and_callback, input, wiki_chain)
+        background_tasks.add_task(process_and_callback, input, wiki_processor)
         
     else:
         logger.info(f"일반 웹사이트 감지 - URL: {input.url}")
@@ -289,7 +289,7 @@ async def summarize_wiki(
                 detail="접근할 수 없는 URL입니다"
             )
         
-        background_tasks.add_task(process_web_and_callback, input, wiki_chain)
+        background_tasks.add_task(process_web_and_callback, input, wiki_processor)
     
     return {"message": "콘텐츠 처리가 시작되었습니다"}
 
@@ -313,7 +313,7 @@ async def delete_project(
 async def delete_project_data(project_id: int):
     try:
         # S3 삭제
-        from models.wiki.wiki_fetcher import WikiFetcher
+        from models.wiki.fetcher.wiki_fetcher import WikiFetcher
         fetcher = WikiFetcher(project_id, "")
         s3_result = fetcher.delete_project_data()
         
