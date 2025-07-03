@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from prompts.prompt import MeetingPromptManager
 from schemas.task import TaskState
-from models.wiki.wiki_retriever import WikiRetriever
+from models.wiki.retriever.basic_retriever import BasicRetriever    
 from models.llm.task_model import Generate_llm_response
 from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class NodeHandler:
     def __init__(self):
         self.prompt = MeetingPromptManager()
-        self.wiki_retriever = WikiRetriever()
+        self.wiki_retriever = BasicRetriever()
         self.task_model = Generate_llm_response()
         self.valid=valid_json()
         self.llm = ChatOpenAI(

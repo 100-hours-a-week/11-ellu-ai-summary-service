@@ -3,8 +3,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from langchain_huggingface import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
 from vectordb.chroma_store import ChromaDBManager
-from models.wiki.wiki_fetcher import WikiFetcher
-import torch 
+from models.wiki.fetcher.wiki_fetcher import WikiFetcher
 import logging
 import time
 import numpy as np
@@ -15,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-class WikiSummarizer:
+class WikiProcessor:
     def __init__(
         self,
         model_name: str = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
@@ -23,19 +22,19 @@ class WikiSummarizer:
     ):
         if embed_func is None:
             embed_func = ChromaDBManager()
-        logger.info("Initializing WikiSummarizer...")
+        logger.info("Initializing WikiProcessor...")
         self.embed_func = embed_func.embed_and_store
-        logger.info("WikiSummarizer initialization complete")
+        logger.info("WikiProcessor initialization complete")
         
-    def summarize_wiki(self, state: dict) -> dict:
-        logger.info(f"Starting wiki summarization for project_id: {state.get('project_id')}")
+    def process_wiki(self, state: dict) -> dict:
+        logger.info(f"Starting wiki processing for project_id: {state.get('project_id')}")
         content = state.get("content")
         
         if not content:
             logger.error("'content' key missing in input state")
             raise KeyError("'content' 키가 없습니다.")
 
-        logger.info("Generating summary...")
+        logger.info("Generating processing...")
 
         embedding_start_time = time.time()
         
@@ -44,13 +43,11 @@ class WikiSummarizer:
         if len(content) > max_chunk_size:
             print(f"Content length {len(content)} chars exceeds max {max_chunk_size}. Chunking activated.")
             
-            # 문자 기준 청킹 (토큰 오버헤드 제거)
             chunks = [content[i:i + max_chunk_size] for i in range(0, len(content), max_chunk_size)]
             
             for i, chunk in enumerate(chunks):
                 print(f"Processing chunk {i + 1}/{len(chunks)}...")
                 
-                # 각 청크별로 별도 문서로 저장
                 chunk_metadata = {
                     "project_id": state.get("project_id"),
                     "repo_url": state["url"], 
@@ -77,17 +74,17 @@ class WikiSummarizer:
         return {"message": "wiki_saved"}
 
 
-    async def summarize_diff_files(self, state: dict) -> dict:
-        logger.info(f"Starting wiki summarization for project_id: {state.project_id}")
+    async def process_diff_files(self, state: dict) -> dict:
+        logger.info(f"Starting wiki processing for project_id: {state.project_id}")
         fetcher = WikiFetcher(state.project_id, state.url)
         
         file_contents = fetcher.get_diff_files()
-        logger.info(f"Summarizing {len(file_contents)} files")
+        logger.info(f"Processing {len(file_contents)} files")
 
         all_embedding_log_ids = []
 
         for relative_path, content in file_contents.items():
-            result = self.summarize_wiki({
+            result = self.process_wiki({
                 "project_id": state.project_id,
                 "content": content, 
                 "url": state.url,
@@ -98,6 +95,6 @@ class WikiSummarizer:
                 all_embedding_log_ids.append(result["embedding_log_id"])
 
         return {
-            "message": f"wiki: {len(file_contents)} files summarized",
+            "message": f"wiki: {len(file_contents)} files processed",
             "embedding_log_ids_processed": all_embedding_log_ids 
         }
