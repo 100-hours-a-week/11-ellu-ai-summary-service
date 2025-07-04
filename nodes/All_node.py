@@ -1,7 +1,8 @@
 from langchain_openai import ChatOpenAI
 from prompts.prompt import MeetingPromptManager
 from schemas.task import TaskState
-from models.wiki.retriever.basic_retriever import BasicRetriever    
+# from models.wiki.retriever.retriever_manager import RetrieverManager
+from models.wiki.retriever.basic_retriever import BasicRetriever
 from models.llm.task_model import Generate_llm_response
 from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
@@ -15,6 +16,8 @@ class NodeHandler:
     def __init__(self):
         self.prompt = MeetingPromptManager()
         self.wiki_retriever = BasicRetriever()
+        # self.wiki_retriever = RetrieverManager.create_retriever()
+
         self.task_model = Generate_llm_response()
         self.valid=valid_json()
         self.llm = ChatOpenAI(
