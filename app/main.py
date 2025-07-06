@@ -175,7 +175,7 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
         )
         # logger.info(f"result : {result}")
         # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
-        response_data = {"user_table_id" :0, "message": "subtasks_created", "detail": []}
+        response_data = { "message": "subtasks_created", "detail": []}
         for position in result['project_position']:
                 response_data["detail"].extend(result[position])
         
@@ -184,16 +184,15 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
             try:
                 with db_engine.begin() as connection:
                     query = text("""
-                        INSERT INTO user_io (user_input, user_output)
-                        VALUES (:user_input, :user_output)
+                        INSERT INTO user_io (user_input, user_output,prohect_id)
+                        VALUES (:user_input, :user_output, :project_id)
                     """)
                     connection.execute(query, {
                         "user_input": input.content,
-                        "user_output": json.dumps(response_data, ensure_ascii=False)
+                        "user_output": json.dumps(response_data, ensure_ascii=False),
+                        "project_id" : input.project_id
                     })
-                    query = text("SELECT MAX(id) FROM user_io")
-                    result = connection.execute(query)
-                    response_data["user_table_id"]=result.fetchone()[0]
+                    
 
                     logger.info("user_io 테이블에 데이터 정상 삽입 완료")
             except SQLAlchemyError as e:
@@ -387,9 +386,9 @@ def warmup():
     return {"status": "warmup complete"}
 
 
-@app.post("/projects/{user_table_id}/insert", status_code=status.HTTP_200_OK)
+@app.post("/projects/{project_id}/insert", status_code=status.HTTP_200_OK)
 async def insert_user_info(
-    user_table_id: int,
+    project_id: int,
     input: InsertInfo,
     background_tasks: BackgroundTasks,
     db_engine=Depends(database_dependency)
@@ -397,30 +396,50 @@ async def insert_user_info(
     if db_engine:
         try:
             with db_engine.begin() as connection:
-                query = text("""
+                # 1. 먼저 해당 project_id의 최대 id 조회
+                max_id_query = text("""
+                    SELECT MAX(id) as max_id
+                    FROM user_io 
+                    WHERE project_id = :project_id
+                """)
+                
+                result = connection.execute(max_id_query, {"project_id": project_id})
+                max_id_row = result.fetchone()
+                
+                if not max_id_row or max_id_row.max_id is None:
+                    logger.warning(f"project_id {project_id}에 해당하는 레코드를 찾을 수 없습니다")
+                    return {"status": "error", "message": f"project_id {project_id}에 해당하는 레코드가 없습니다"}
+                
+                max_id = max_id_row.max_id
+                
+                
+                # 2. 해당 id로 업데이트
+                update_query = text("""
                     UPDATE user_io 
                     SET user_choice = :user_choice
-                    WHERE id = :user_table_id
+                    WHERE id = :max_id
                 """)
-                connection.execute(query, {
-                    "user_choice": json.dumps(input.content, ensure_ascii=False),  # ✅ input.content로 수정
-                    "user_table_id": user_table_id
+                
+                update_result = connection.execute(update_query, {
+                    "user_choice": json.dumps(input.content, ensure_ascii=False),
+                    "max_id": max_id
                 })
-
-                logger.info(f"user_io 테이블 ID {user_table_id}에 데이터 정상 업데이트 완료")
-                return {"status": "success", "message": "데이터가 업데이트되었습니다"}
+                
+                if update_result.rowcount == 0:
+                    return {"status": "error", "message": "업데이트 실패"}
+                
+                logger.info(f"user_io 테이블 ID {max_id}에 데이터 정상 업데이트 완료")
+                return {
+                    "status": "success", 
+                    "message": "데이터가 업데이트되었습니다",
+                    
+                }
                 
         except SQLAlchemyError as e:
             logger.error(f"user_io 테이블 업데이트 실패: {str(e)}")
             return {"status": "error", "message": str(e)}
-        
-    #     # 성공 콜백 전송
-    #     await meeting_note_callback(project_id, "completed", response_data)
-        
-    # except Exception as e:
-    #     logger.error(f"회의록 DB 저장장 처리 실패 - project_id: {project_id}, 오류: {e}")
-    #     # 실패 콜백 전송
-    #     await meeting_note_callback(project_id, "failed", response_data)
+    else:
+        return {"status": "error", "message": "데이터베이스 연결이 없습니다"}
 
 
 @app.get("/metrics")
