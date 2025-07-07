@@ -81,9 +81,19 @@ class NodeHandler:
                     logger.error(f"Wiki retrieval failed for Project ID {state['project_id']}: {e}")
                     wiki_context = "" 
                 # logger.info(f" wiki 내용: {wiki_result}")
-                chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
+                role= self.prompt.subtask_position_role(key)
+                chat = self.prompt.get_subtask_prompts(key, task, wiki_context,role)
                 
-                parsed = self.task_model.run_model_and_parse(chat, "sub",task,key)
+                response = self.task_model.run_model_and_parse(chat, "sub",task,key)
+                if not isinstance(response,list):
+                    logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
+                    
+                    if len(response) > 1 :
+                        response = sum(response, []) # response 평탄화
+                    else:
+                        response =[]  
+                    
+                parsed=[{"position": key, "task": task, "subtasks": response}]
             
                 outputs.extend(parsed) 
             
@@ -161,7 +171,7 @@ class NodeHandler:
 
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
-        elif   state['count'] >= 2:
+        elif   state['count'] >= 1:
                 logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
                 try:
                     meeting_note = state["meeting_note"]
@@ -212,6 +222,24 @@ class NodeHandler:
             logger.error(f"재시도 중 오류: {str(e)}")
             return {'error': str(e)}
 
+    def route_after_validation(self, state: TaskState) -> list[str]:
+        if state['validation_result'] == 'fail':
+            return ["retry_node"]
+        else:
+            return self.route_to_subtasks(state)
+    
+    def generate_AI_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "AI")
+
+    def generate_BE_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "BE")
+
+    def generate_FE_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "FE")
+
+    def generate_Cloud_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "CLOUD") 
+
     # def generate_all_position_responses(self, state: TaskState) -> dict:
     #     try:
     #         positions = state["position"]
@@ -244,20 +272,3 @@ class NodeHandler:
     #         logger.error(f"전체 포지션 응답 생성 중 오류: {str(e)}")
     #         return {'error': str(e)}
         
-    def route_after_validation(self, state: TaskState) -> list[str]:
-        if state['validation_result'] == 'fail':
-            return ["retry_node"]
-        else:
-            return self.route_to_subtasks(state)
-    
-    def generate_AI_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "AI")
-
-    def generate_BE_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "BE")
-
-    def generate_FE_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "FE")
-
-    def generate_Cloud_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "CLOUD") 
