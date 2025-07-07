@@ -184,7 +184,7 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
             try:
                 with db_engine.begin() as connection:
                     query = text("""
-                        INSERT INTO user_io (user_input, user_output,prohect_id)
+                        INSERT INTO user_io (user_input, user_output,project_id)
                         VALUES (:user_input, :user_output, :project_id)
                     """)
                     connection.execute(query, {
