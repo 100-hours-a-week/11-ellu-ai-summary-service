@@ -4,11 +4,19 @@ from transformers import AutoTokenizer, AutoModel
 class CustomEmbeddingFunction:
     def __init__(self, model_name="BM-K/KoSimCSE-roberta-multitask"):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModel.from_pretrained(model_name).to(self.device)
-        self.model.eval()
+        self.model_name = model_name
+        self.tokenizer = None
+        self.model = None
+
+    def _load_model(self):
+        if self.tokenizer is None or self.model is None:
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model = AutoModel.from_pretrained(self.model_name).to(self.device)
+            self.model.eval()
 
     def __call__(self, texts: list[str]) -> list[list[float]]:
+        self._load_model()
+
         batch = self.tokenizer(
             texts,
             padding=True,

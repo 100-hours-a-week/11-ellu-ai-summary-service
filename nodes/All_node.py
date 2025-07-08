@@ -1,7 +1,8 @@
 from langchain_openai import ChatOpenAI
 from prompts.prompt import MeetingPromptManager
 from schemas.task import TaskState
-from models.wiki.wiki_retriever import WikiRetriever
+# from models.wiki.retriever.retriever_manager import RetrieverManager
+from models.wiki.retriever.basic_retriever import BasicRetriever
 from models.llm.task_model import Generate_llm_response
 from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
@@ -14,7 +15,9 @@ logger = logging.getLogger(__name__)
 class NodeHandler:
     def __init__(self):
         self.prompt = MeetingPromptManager()
-        self.wiki_retriever = WikiRetriever()
+        self.wiki_retriever = BasicRetriever()
+        # self.wiki_retriever = RetrieverManager.create_retriever()
+
         self.task_model = Generate_llm_response()
         self.valid=valid_json()
         self.llm = ChatOpenAI(
@@ -40,13 +43,15 @@ class NodeHandler:
         try:
             chat = state['prompt']
             parsed = self.task_model.run_model_and_parse(chat,"main")
-            logger.info(f"parsed:{parsed}")
+            
              # 빈 배열의 키 제거
             logger.info("메인 태스크 응답 생성 성공")
             for i in list(parsed.keys()):
-                if parsed[i] == []:
+                if parsed[i] == [] or i not in ["AI","BE","CLOUD","FE"]:
                     del parsed[i]
-            return {'main_task': parsed,'position' : list(parsed.keys())} 
+            logger.info(f"parsed:{parsed}")
+            return {'main_task': parsed,'project_position' : list(parsed.keys())} 
+
         except Exception as e:
             logger.error(f"응답 생성 중 오류: {str(e)}")
             return {'error': str(e)}
@@ -75,12 +80,22 @@ class NodeHandler:
                 except Exception as e:
                     logger.error(f"Wiki retrieval failed for Project ID {state['project_id']}: {e}")
                     wiki_context = "" 
-
-                chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
+                # logger.info(f" wiki 내용: {wiki_result}")
+                role= self.prompt.subtask_position_role(key)
+                chat = self.prompt.get_subtask_prompts(key, task, wiki_context,role)
                 
-                parsed = self.task_model.run_model_and_parse(chat, "sub")
+                response = self.task_model.run_model_and_parse(chat, "sub",task,key)
+                if not isinstance(response,list):
+                    logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
+                    
+                    if len(response) > 1 :
+                        response = sum(response, []) # response 평탄화
+                    else:
+                        response =[]  
+                    
+                parsed=[{"position": key, "task": task, "subtasks": response}]
             
-                outputs.append(parsed) 
+                outputs.extend(parsed) 
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")
             return {key: outputs}
@@ -151,10 +166,12 @@ class NodeHandler:
             
             # 정상 통과 시
             
-                routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+
+                routes = [mapping[p.lower()] for p in state['project_position'] if p.lower() in mapping]
+
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
-        elif   state['count'] >= 2:
+        elif   state['count'] >= 1:
                 logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
                 try:
                     meeting_note = state["meeting_note"]
@@ -175,13 +192,13 @@ class NodeHandler:
                     return {
                         'main_task': parsed,  # 상태 업데이트
                         'routes': routes,
-                        'position' :  position   # 라우팅 정보
-                    }
+                        'project_position' :  position   # 라우팅 정보
+ }
                     
                 except Exception as e:
                     logger.error(f"강제 재생성 중 오류: {str(e)}")
                     # 오류 발생 시 기존 데이터로 진행
-                    routes = [mapping[p.lower()] for p in state['position'] if p.lower() in mapping]
+                    routes = [mapping[p.lower()] for p in state['project_position'] if p.lower() in mapping]
                     return {'routes': routes}
         
         # 재시도 필요
@@ -204,6 +221,24 @@ class NodeHandler:
         except Exception as e:
             logger.error(f"재시도 중 오류: {str(e)}")
             return {'error': str(e)}
+
+    def route_after_validation(self, state: TaskState) -> list[str]:
+        if state['validation_result'] == 'fail':
+            return ["retry_node"]
+        else:
+            return self.route_to_subtasks(state)
+    
+    def generate_AI_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "AI")
+
+    def generate_BE_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "BE")
+
+    def generate_FE_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "FE")
+
+    def generate_Cloud_response(self, state: TaskState) -> dict:
+        return self.generate_position_response(state, "CLOUD") 
 
     # def generate_all_position_responses(self, state: TaskState) -> dict:
     #     try:
@@ -237,20 +272,3 @@ class NodeHandler:
     #         logger.error(f"전체 포지션 응답 생성 중 오류: {str(e)}")
     #         return {'error': str(e)}
         
-    def route_after_validation(self, state: TaskState) -> list[str]:
-        if state['validation_result'] == 'fail':
-            return ["retry_node"]
-        else:
-            return self.route_to_subtasks(state)
-    
-    def generate_AI_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "AI")
-
-    def generate_BE_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "BE")
-
-    def generate_FE_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "FE")
-
-    def generate_Cloud_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "CLOUD") 

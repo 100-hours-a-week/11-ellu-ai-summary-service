@@ -3,10 +3,11 @@ import logging
 from functools import lru_cache
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from models.wiki.wiki_chain import WikiSummarizer
+from models.wiki.wiki_processor import WikiProcessor
 from nodes.graph import MeetingWorkflow
 from .config import CHROMA_HOST, CHROMA_PORT, USER_INFO_DB_URL
 from .exceptions import ChromaDBConnectionError, DatabaseError
+from vectordb.chroma_store import ChromaDBManager
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,6 @@ def get_chroma_client():
     """ChromaDB 클라이언트 인스턴스를 반환합니다."""
     try:
         client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-        # Test connection
-        client.heartbeat()
         logger.info("Connected to ChromaDB successfully")
         return client
     except Exception as e:
@@ -42,10 +41,10 @@ def get_database_engine():
 
 # Service dependencies
 @lru_cache()
-def get_wiki_summarizer():
-    """WikiSummarizer 인스턴스를 반환합니다."""
+def get_wiki_processor():
     try:
-        return WikiSummarizer()
+        chroma = ChromaDBManager() 
+        return WikiProcessor(embed_func=chroma)
     except Exception as e:
         logger.error(f"Failed to initialize WikiSummarizer: {e}")
         raise
@@ -68,9 +67,9 @@ def database_dependency():
     """FastAPI dependency for database engine"""
     return get_database_engine()
 
-def wiki_summarizer_dependency():
-    """FastAPI dependency for WikiSummarizer"""
-    return get_wiki_summarizer()
+def wiki_processor_dependency():
+    """FastAPI dependency for WikiProcessor"""
+    return get_wiki_processor()
 
 def meeting_workflow_dependency():
     """FastAPI dependency for MeetingWorkflow"""

@@ -41,3 +41,5 @@ chroma.log
 *_post_test.py
 
 data/
+
+start.sh

@@ -43,7 +43,7 @@ class Generate_llm_response:
             model_kwargs=MODEL_KWARGS
         )
         
-    def parse_response(self, content: str,where:str) -> dict:
+    def parse_response(self, content: str,where:str,task: str=None, position :str=None) -> dict:
         """응답 파싱"""
         try:
             cleaned = re.sub(r"```json|```", "", content).strip()
@@ -51,17 +51,19 @@ class Generate_llm_response:
         except json.JSONDecodeError as e:
             if where =="main":
                 logger.error(f"Main JSON 파싱 오류: {str(e)}")
+                logger.info(f"Main JSON 파싱 오류 content: {content}")
                 return self.json_fixer.fix_json(content)
             else :
                 logger.error(f"Sub JSON 파싱 오류: {str(e)}")
-                return self.json_fixer.fix_subtask_json(content)                
+                logger.info(f"Sub JSON 파싱 오류 content: {content}")
+                return self.json_fixer.fix_subtask_json(content,position,task)                
         except Exception as e:
             logger.error(f"응답 파싱 중 오류: {str(e)}")
             return {"error": str(e)}
     # ────────────────────────────────────────────────────────
     # 모델 실행 및 JSON 파싱
     # ────────────────────────────────────────────────────────
-    def run_model_and_parse(self, chat: list,where:str) -> dict:
+    def run_model_and_parse(self, chat: list,where:str,task: str=None, position :str=None) -> dict:
         """LLM 모델 실행 및 결과 파싱"""
         try:
             if where == "sub" :
@@ -83,9 +85,10 @@ class Generate_llm_response:
                 raw = self.tokenizer.decode(gen_ids, skip_special_tokens=True).strip()
                 
                 
-                parsed = self.parse_response(raw,where)
+                parsed = self.parse_response(raw,where,task,position)
                 return parsed
-            else:
+            else: # 메인 일 때때
+                
                                 # LLM 모델 실행
                 response = self.llm.invoke(chat)
                 
