@@ -1,11 +1,11 @@
-name: Docker Image For Development
+name: Docker Image For Production
 on: 
   push:
     branches:
       - main
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: 100-hours-a-week/11-ellu-ai-summary-service
+  IMAGE_NAME: 100-hours-a-week/looper-ai-summary
 
 jobs:
   package:
