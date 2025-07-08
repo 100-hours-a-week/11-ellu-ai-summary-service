@@ -1,3 +1,24 @@
+# [1.3.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.2.0...v1.3.0) (2025-07-08)
+
+
+### Bug Fixes
+
+* k8s deployment에서 모델 warmup endpoint 호출하기위해 curl 추가 ([7c8e652](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/7c8e65274fe74b984114e5e47633b8c275ea7bb4))
+* k8s 환경을 위한 chromadb lazy loading 적용 ([d7d3cfd](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/d7d3cfd4fdc10df7450d91f8c96eab80e8df58af))
+* main.py NoneType 수정 ([04cb923](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/04cb9232609f8df97ad5a3e695de7bfb61b86329))
+* model lazy-loading 적용후  warmup 엔드포인트 추가 ([4708843](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/47088432e677e90674d7b1dcc5cfcca63f604d15))
+* subtask오류 프롬프트 수정([#168](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/168)) ([db76880](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/db7688098919122eedbf02b06b858d83fe4e8f3d))
+* 오류 부분 외 수정([#166](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/166)) ([97bdfe5](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/97bdfe56b6919c9e51d6a24fb65dc7db5dae2448))
+
+
+### Features
+
+* release ci 파이프라인 추가 ([5d3234a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/5d3234aa6984e5ecd6b2809452ae94a163433767))
+* s3, db 데이터 삭제기능([#144](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/144)) ([0a8ed51](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/0a8ed51dbc6a779af25f3414dfe291d14d2e71c6))
+* wiki외 url크롤링([#100](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/100)) ([28282d5](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/28282d5aa7ff46fa652032a5ef53bd8b5d0c511b))
+* 데이터 파이프라인 구축([#172](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/172)) ([2e67d89](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/2e67d89af498fbbdf9330b48f0eb6aceacfae435))
+* 유저 데이터 저장 part 수정([#187](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/187)) ([93a57b9](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/93a57b994d102546d09b36a3c2f6548d70a73c76))
+
 # [1.2.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.1.0...v1.2.0) (2025-06-20)
 
 
