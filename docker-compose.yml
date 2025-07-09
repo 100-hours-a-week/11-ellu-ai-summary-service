@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  fastapi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - VLLM_URL=http://vllm-server:8000
+    depends_on:
+      - vllm-server
+
+  vllm-server:
+    build:
+      context: ./vllm_server
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
