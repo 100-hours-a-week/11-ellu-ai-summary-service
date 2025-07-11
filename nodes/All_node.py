@@ -81,8 +81,8 @@ class NodeHandler:
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
                 
                 parsed = await self.task_model.run_model_and_parse(chat, "sub",task,key)
-            
-                outputs.extend(parsed) 
+                logger.info(f" parsed 내용: {parsed}")
+                outputs.append(parsed) 
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")
             return {key: outputs}

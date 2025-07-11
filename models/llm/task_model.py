@@ -56,7 +56,7 @@ class Generate_llm_response:
                 response = await client.post(
                     f"{self.vllm_url}/v1/chat/completions",
                     json={
-                        "model": "heegyu/EEVE-Korean-Instruct-10.8B-v1.0-gguf",
+                        "model": "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
                         "messages": chat,
                         "temperature": TEMPERATURE,
                         **MODEL_KWARGS
