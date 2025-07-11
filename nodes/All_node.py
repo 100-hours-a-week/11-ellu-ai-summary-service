@@ -78,11 +78,22 @@ class NodeHandler:
                     logger.error(f"Wiki retrieval failed for Project ID {state['project_id']}: {e}")
                     wiki_context = "" 
                 # logger.info(f" wiki 내용: {wiki_result}")
-                chat = self.prompt.get_subtask_prompts(key, task, wiki_context)
+                role= self.prompt.subtask_position_role(key)
+                chat = self.prompt.get_subtask_prompts(key, task, wiki_context,role)
                 
-                parsed = await self.task_model.run_model_and_parse(chat, "sub",task,key)
+                response = await self.task_model.run_model_and_parse(chat, "sub",task,key)
+                response =response['세부 단계']
+                if not isinstance(response,list):
+                    logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
+                    
+                    if len(response) > 1 :
+                        response = sum(response, []) # response 평탄화
+                    else:
+                        response =[]  
+                    
+                parsed=[{"position": key, "task": task, "subtasks": response}]
                 logger.info(f" parsed 내용: {parsed}")
-                outputs.append(parsed) 
+                outputs.extend(parsed) 
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")
             return {key: outputs}
@@ -158,7 +169,7 @@ class NodeHandler:
 
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
-        elif   state['count'] >= 2:
+        elif   state['count'] >= 1:
                 logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
                 try:
                     meeting_note = state["meeting_note"]
