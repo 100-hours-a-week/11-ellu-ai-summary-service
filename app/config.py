@@ -46,3 +46,7 @@ AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_REGION = os.getenv("AWS_REGION")
+
+
+# retriever_type
+RETRIEVER_CLASS = "BasicRetriever"  # "BasicRetriever", "QueryEnhancedRetriever", "RoleEnhancedRetriever", "PsuedoExpertRetriever"

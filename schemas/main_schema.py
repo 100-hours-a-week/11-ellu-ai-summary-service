@@ -34,13 +34,12 @@ class MeetingNote(BaseModel):
         return v
 
 
+
 class InsertInfo(BaseModel):
-    user_table_id: int
-    content: List[Dict[str, Any]]  # 리스트로 변경!
+    content: List[Dict[str, Any]]  # project_id는 URL에서 받으므로 제거
 
     @validator('content')
     def validate_content_not_empty(cls, v):
         if not v:  # 빈 리스트 체크
             raise ValueError("Content cannot be empty")
         return v
-

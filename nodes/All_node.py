@@ -1,7 +1,8 @@
 from langchain_openai import ChatOpenAI
 from prompts.prompt import MeetingPromptManager
 from schemas.task import TaskState
-from models.wiki.wiki_retriever import WikiRetriever
+# from models.wiki.retriever.retriever_manager import RetrieverManager
+from models.wiki.retriever.basic_retriever import BasicRetriever
 from models.llm.task_model import Generate_llm_response
 from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
@@ -14,7 +15,9 @@ logger = logging.getLogger(__name__)
 class NodeHandler:
     def __init__(self):
         self.prompt = MeetingPromptManager()
-        self.wiki_retriever = WikiRetriever()
+        self.wiki_retriever = BasicRetriever()
+        # self.wiki_retriever = RetrieverManager.create_retriever()
+
         self.task_model = Generate_llm_response()
         self.valid=valid_json()
         self.llm = ChatOpenAI(
@@ -81,8 +84,10 @@ class NodeHandler:
                 role= self.prompt.subtask_position_role(key)
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context,role)
                 
+
                 response = await self.task_model.run_model_and_parse(chat, "sub",task,key)
                 response =response['세부 단계']
+
                 if not isinstance(response,list):
                     logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
                     
@@ -92,7 +97,9 @@ class NodeHandler:
                         response =[]  
                     
                 parsed=[{"position": key, "task": task, "subtasks": response}]
+
                 logger.info(f" parsed 내용: {parsed}")
+
                 outputs.extend(parsed) 
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")

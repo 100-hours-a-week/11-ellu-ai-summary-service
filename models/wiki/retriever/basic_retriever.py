@@ -1,10 +1,7 @@
 from vectordb.embed_model import CustomEmbeddingFunction
 import chromadb
 import logging
-import sqlite3
-from datetime import datetime
-import numpy as np
-import time
+import time 
 from app.config import CHROMA_HOST, CHROMA_PORT
 
 logging.basicConfig(level=logging.INFO)
@@ -13,11 +10,10 @@ logger = logging.getLogger(__name__)
 embedding_fn = CustomEmbeddingFunction()
 
 
-class WikiRetriever:
+class BasicRetriever:
     def __init__(self):
         self.embedding_fn = CustomEmbeddingFunction()
         self.chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
-        # collection 생성
         self.collection = self.chroma_client.get_or_create_collection(name="wiki_summaries")
 
 
@@ -27,11 +23,8 @@ class WikiRetriever:
         try:
             query_embedding_start_time = time.time()
             query_embedding = self.embedding_fn.embed_query(task)
-            query_embedding_time = time.time() - query_embedding_start_time
+            # query_embedding_time = time.time() - query_embedding_start_time
             
-            # retrieval_start_time = time.time()
-            # retrieval_log_id = None 
-
             results = self.collection.query(
                 query_embeddings=[query_embedding],
                 n_results=k,

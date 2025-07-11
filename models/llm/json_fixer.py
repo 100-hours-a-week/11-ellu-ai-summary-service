@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
-
+import json
 
 import logging
 from  app.config import  OPENAI_API_KEY,GPT_MODEL
@@ -31,12 +31,13 @@ class JsonFixer:
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt)
             ]
-            
+
             response = self.llm.invoke(messages)
-            
-            validated_result = self.valid.validate_main_task_json(response)
-            logger.info("메인 태스크 JSON 수정 완료")
-            return validated_result
+
+            # LangChain 응답은 보통 .content 속성이 있음
+            content = response.content  # ✅ 올바른 LangChain 접근
+            logger.info("서브 태스크 JSON 수정 완료")
+            return json.loads(content)
             
         except Exception as e:
             logger.error(f"json_fixer 파일에서 main task JSON 수정 실패: {str(e)}")
@@ -58,11 +59,11 @@ class JsonFixer:
             
             response = self.llm.invoke(messages)
 
-            
+            content = response.choices[0].message.content
             # 결과 검증 및 보완
-            validated_result = self.valid.validate_subtask_json(response)
+            # validated_result = self.valid.validate_subtask_json(response)
             logger.info("서브 태스크 JSON 수정 완료")
-            return validated_result
+            return json.loads(content)
             
         except Exception as e:
             logger.error(f"json_fixer 파일에서 서브태스크 JSON 수정 실패: {str(e)}")

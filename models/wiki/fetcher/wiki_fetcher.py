@@ -153,15 +153,12 @@ class WikiFetcher:
             with tempfile.TemporaryDirectory() as temp_dir:
                 repo_path = os.path.join(temp_dir, f"{self.project_id}-wiki")
                 
-                # S3에서 기존 파일들 다운로드 시도
                 existing_repo = self._download_from_s3(temp_dir)
                 
                 if not existing_repo:
-                    # clone
                     logger.info(f"[WikiFetcher] First clone for project {self.project_id}")
                     Repo.clone_from(self.url, repo_path)
                     
-                    # S3에 개별 파일로 업로드
                     self._upload_to_s3(repo_path)
                     
                     all_md_files = []
@@ -172,7 +169,6 @@ class WikiFetcher:
                     
                     logger.info(f"First clone: found {len(all_md_files)} .md files")
                     
-                    # read
                     file_contents = self._read_md_files(repo_path, all_md_files)
                     return file_contents
                 
@@ -266,69 +262,3 @@ class WikiFetcher:
         except Exception as e:
             logger.error(f"프로젝트 {self.project_id} S3 데이터 삭제 실패: {e}")
             return False
-
-    # def get_project_info(self):
-    #     try:
-    #         # 폴더 내 파일 목록 조회
-    #         response = self.s3_client.list_objects_v2(
-    #             Bucket=self.bucket_name,
-    #             Prefix=self.s3_prefix
-    #         )
-            
-    #         if 'Contents' not in response:
-    #             return {
-    #                 'project_id': self.project_id,
-    #                 'exists': False,
-    #                 's3_prefix': self.s3_prefix,
-    #                 'file_count': 0,
-    #                 'total_size': 0
-    #             }
-            
-    #         file_count = len(response['Contents'])
-    #         total_size = sum(obj['Size'] for obj in response['Contents'])
-    #         latest_modified = max(obj['LastModified'] for obj in response['Contents'])
-            
-    #         return {
-    #             'project_id': self.project_id,
-    #             'exists': True,
-    #             's3_prefix': self.s3_prefix,
-    #             'file_count': file_count,
-    #             'total_size': total_size,
-    #             'total_size_mb': round(total_size / (1024 * 1024), 2),
-    #             'latest_modified': latest_modified
-    #         }
-            
-    #     except ClientError as e:
-    #         logger.error(f"Failed to get project info: {e}")
-    #         return {
-    #             'project_id': self.project_id,
-    #             'exists': False,
-    #             'error': str(e)
-    #         }
-
-    # def list_project_files(self):
-    #     try:
-    #         response = self.s3_client.list_objects_v2(
-    #             Bucket=self.bucket_name,
-    #             Prefix=self.s3_prefix
-    #         )
-            
-    #         if 'Contents' not in response:
-    #             return []
-            
-    #         files = []
-    #         for obj in response['Contents']:
-    #             relative_path = obj['Key'][len(self.s3_prefix):]
-    #             if relative_path:  # 빈 키 제외
-    #                 files.append({
-    #                     'path': relative_path,
-    #                     'size': obj['Size'],
-    #                     'modified': obj['LastModified'],
-    #                     's3_key': obj['Key']
-    #                 })
-            
-    #         return files
-            
-    #     except Exception as e:
-    #         logger.error(f"Failed to list files: {e}")
-    #         return []
