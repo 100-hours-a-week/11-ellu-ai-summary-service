@@ -54,7 +54,7 @@ class MeetingWorkflow:
             logger.error(f"그래프 빌드 중 오류 발생: {str(e)}")
             raise
 
-    def run(self, meeting_notes: str, project_id: int, position: list):
+    async def arun(self, meeting_notes: str, project_id: int, position: list):
         try:
             position=list(set(position))
             init_state = {
@@ -73,7 +73,7 @@ class MeetingWorkflow:
                 'project_position':None
 
             }
-            result = self.graph.invoke(init_state)
+            result = await self.graph.ainvoke(init_state)
             
             # 결과 상태 업데이트
             if 'error' in result:
