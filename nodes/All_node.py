@@ -176,7 +176,7 @@ class NodeHandler:
 
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
-        elif   state['count'] >= 1:
+        elif   state['count'] >= 0:
                 logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
                 try:
                     meeting_note = state["meeting_note"]
