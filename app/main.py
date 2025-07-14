@@ -168,7 +168,7 @@ async def process_meeting_note_and_callback(input: MeetingNote, project_id: int,
     """회의록 처리 및 콜백 실행"""
     try:
         # 회의록에서 태스크 추출
-        result = task_parser.run(
+        result = await task_parser.arun(
             meeting_notes=input.content,
             project_id=project_id,
             position=input.position,
