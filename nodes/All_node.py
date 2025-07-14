@@ -7,7 +7,7 @@ from models.llm.task_model import Generate_llm_response
 from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
 import logging
-import concurrent.futures
+import asyncio
 from utils.valid import valid_json
 
 logger = logging.getLogger(__name__)
@@ -39,10 +39,10 @@ class NodeHandler:
             logger.error(f"핵심 태스크 추출 중 오류: {str(e)}")
             return {'error': str(e)}
 
-    def generate_response(self, state: TaskState) -> dict:
+    async def generate_response(self, state: TaskState) -> dict:
         try:
             chat = state['prompt']
-            parsed = self.task_model.run_model_and_parse(chat,"main")
+            parsed = await self.task_model.run_model_and_parse(chat,"main")
             
              # 빈 배열의 키 제거
             logger.info("메인 태스크 응답 생성 성공")
@@ -56,7 +56,7 @@ class NodeHandler:
             logger.error(f"응답 생성 중 오류: {str(e)}")
             return {'error': str(e)}
 
-    def generate_position_response(self, state: TaskState, key: str) -> dict:
+    async def generate_position_response(self, state: TaskState, key: str) -> dict:
         try:
             tasks = state['main_task'][key]
             if not tasks:
@@ -84,7 +84,10 @@ class NodeHandler:
                 role= self.prompt.subtask_position_role(key)
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context,role)
                 
-                response = self.task_model.run_model_and_parse(chat, "sub",task,key)
+
+                response = await self.task_model.run_model_and_parse(chat, "sub",task,key)
+                response =response['세부 단계']
+
                 if not isinstance(response,list):
                     logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
                     
@@ -94,7 +97,9 @@ class NodeHandler:
                         response =[]  
                     
                 parsed=[{"position": key, "task": task, "subtasks": response}]
-            
+
+                logger.info(f" parsed 내용: {parsed}")
+
                 outputs.extend(parsed) 
             
             logger.info(f"포지션 {key} 응답 생성 성공 - {len(tasks)}개 태스크 처리, {len(outputs)}개 결과 생성")
@@ -222,53 +227,40 @@ class NodeHandler:
             logger.error(f"재시도 중 오류: {str(e)}")
             return {'error': str(e)}
 
+    async def generate_all_position_responses(self, state: TaskState) -> dict:
+        try:
+            positions = state["project_position"]
+            logger.info(f"전체 포지션 응답 생성 시작 - 대상 포지션: {positions}")
+            
+            tasks = [self.generate_position_response(state, pos) for pos in positions]
+            results_list = await asyncio.gather(*tasks)
+            
+            results = {}
+            for res in results_list:
+                results.update(res)
+            
+            success_count = sum(1 for v in results.values() if not isinstance(v, dict) or 'error' not in v)
+            logger.info(f"전체 포지션 응답 생성 완료 - 성공: {success_count}/{len(positions)}")
+            
+            return results
+        except Exception as e:
+            logger.error(f"전체 포지션 응답 생성 중 오류: {str(e)}")
+            return {'error': str(e)}
+        
     def route_after_validation(self, state: TaskState) -> list[str]:
         if state['validation_result'] == 'fail':
             return ["retry_node"]
         else:
             return self.route_to_subtasks(state)
     
-    def generate_AI_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "AI")
+    async def generate_AI_response(self, state: TaskState) -> dict:
+        return await self.generate_position_response(state, "AI")
 
-    def generate_BE_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "BE")
+    async def generate_BE_response(self, state: TaskState) -> dict:
+        return await self.generate_position_response(state, "BE")
 
-    def generate_FE_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "FE")
+    async def generate_FE_response(self, state: TaskState) -> dict:
+        return await self.generate_position_response(state, "FE")
 
-    def generate_Cloud_response(self, state: TaskState) -> dict:
-        return self.generate_position_response(state, "CLOUD") 
-
-    # def generate_all_position_responses(self, state: TaskState) -> dict:
-    #     try:
-    #         positions = state["position"]
-    #         logger.info(f"전체 포지션 응답 생성 시작 - 대상 포지션: {positions}")
-            
-    #         results = {}
-    #         with concurrent.futures.ThreadPoolExecutor() as executor:
-    #             future_to_key = {
-    #                 executor.submit(self.generate_position_response, state, pos): pos
-    #                 for pos in positions
-    #             }
-                
-    #             completed_count = 0
-    #             for future in concurrent.futures.as_completed(future_to_key):
-    #                 key = future_to_key[future]
-    #                 try:
-    #                     result = future.result()
-    #                     results.update(result)
-    #                     completed_count += 1
-    #                     logger.debug(f"포지션 {key} 처리 완료 ({completed_count}/{len(positions)})")
-    #                 except Exception as e:
-    #                     logger.error(f"포지션 {key} 처리 중 오류: {str(e)}")
-    #                     results[key] = {'error': str(e)}
-            
-    #         success_count = sum(1 for v in results.values() if not isinstance(v, dict) or 'error' not in v)
-    #         logger.info(f"전체 포지션 응답 생성 완료 - 성공: {success_count}/{len(positions)}")
-            
-    #         return results
-    #     except Exception as e:
-    #         logger.error(f"전체 포지션 응답 생성 중 오류: {str(e)}")
-    #         return {'error': str(e)}
-        
+    async def generate_Cloud_response(self, state: TaskState) -> dict:
+        return await self.generate_position_response(state, "CLOUD") 

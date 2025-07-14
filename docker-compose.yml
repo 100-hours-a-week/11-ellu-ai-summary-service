@@ -1,0 +1,40 @@
+services:
+  fastapi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8080"
+    environment:
+      - VLLM_URL=http://vllm-server:8000
+      - CHROMA_HOST=chroma-db
+      - CHROMA_PORT=8000
+    depends_on:
+      - vllm-server
+      - chroma-db
+
+  vllm-server:
+    build:
+      context: ./vllm_server
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGINGFACE_API_KEY} # 여기에 실제 토큰을 입력하세요
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  chroma-db:
+    image: chromadb/chroma
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+volumes:
+  chroma_data:
