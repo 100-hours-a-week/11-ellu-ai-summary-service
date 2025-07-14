@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.0...v1.3.1) (2025-07-14)
+
+
+### Bug Fixes
+
+* vLLM commit 수정 ([5e98ce2](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/5e98ce268eaa98dad9fdd832cf447eeee17b30bf))
+
 # [1.3.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.2.0...v1.3.0) (2025-07-08)
 
 
