@@ -1,3 +1,10 @@
+## [1.3.3](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.2...v1.3.3) (2025-07-14)
+
+
+### Bug Fixes
+
+* vllm json parsing 단순화 ([dbf2ae3](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/dbf2ae34da902aab43f9491cb852df11b201ddce))
+
 ## [1.3.2](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.1...v1.3.2) (2025-07-14)
 
 
