@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.1...v1.3.2) (2025-07-14)
+
+
+### Bug Fixes
+
+* requirements.txt torch install 추가 ([5a6def4](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/5a6def4c050e7e26e1fa44b9084f561addd353e7))
+
 ## [1.3.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.0...v1.3.1) (2025-07-14)
 
 
