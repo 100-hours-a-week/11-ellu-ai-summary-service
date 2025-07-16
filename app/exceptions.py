@@ -41,6 +41,21 @@ def raise_project_id_mismatch():
         detail="URL의 프로젝트 ID와 요청 본문의 프로젝트 ID가 일치하지 않습니다"
     )
 
+def raise_unsupported_audio_extension(ext, supported_exts):
+    """지원하지 않는 오디오 파일 확장자 예외"""
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"지원하지 않는 오디오 파일 형식입니다: {ext}. 지원 형식: {', '.join(supported_exts)}"
+    )
+
+def raise_audio_file_save_error(e):
+    """오디오 파일 임시 저장 실패 예외"""
+    logger.error(f"오디오 파일 저장 실패: {e}")
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=f"오디오 파일 저장 중 오류가 발생했습니다: {str(e)}"
+    )
+
 # Global exception handler
 async def global_exception_handler(request, exc):
     """전역 예외 처리기"""
