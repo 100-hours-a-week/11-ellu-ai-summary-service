@@ -1,3 +1,19 @@
+# [1.4.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.4...v1.4.0) (2025-07-16)
+
+
+### Bug Fixes
+
+* ChromaDB 원본 로직 복원 및 올바른 트레이싱 추가 ([538d6b2](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/538d6b263328a5633e40f3fa6316741c388776bf))
+* ChromaDB 컬렉션 존재 확인 후 작업 수행 ([a4cbdaa](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/a4cbdaa34f28f212d22d740c4be45199e228bc2c))
+* requirements.txt torch install 추가 ([c79ee71](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/c79ee71b20a189bffbb171ca6d548a9a9cb810a9))
+* vLLM commit 수정 ([1b8d9e1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/1b8d9e1143e6521f106fda7de96c6e48b7bbd899))
+* vllm json parsing 단순화 ([498e58a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/498e58a68ecfa555cf6a4330023b322da65ba8fa))
+
+
+### Features
+
+* ChromaDB 트레이싱 추가 및 CUDA에서 Python slim 이미지로 변경 ([7c835b8](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/7c835b8cfe6d42109d59ea663ae1585ab44b962e))
+
 ## [1.3.4](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.3...v1.3.4) (2025-07-16)
 
 
