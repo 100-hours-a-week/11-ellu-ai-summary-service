@@ -9,6 +9,8 @@ import json
 import logging
 import asyncio
 from utils.valid import valid_json
+from models.stt.audio_transcriber import GeminiSTT
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,21 @@ class NodeHandler:
             temperature=TEMPERATURE,
             model_kwargs=MODEL_KWARGS
         )
+        self.gemini_stt = GeminiSTT()
         logger.info("NodeHandler 초기화 완료")
+
+    def audio_to_text_with_gemini(self, audio_file_path: str, project_id: int) -> dict:
+        """
+        GeminiSTT를 사용해 음성 파일에서 텍스트를 추출하고, 파일을 삭제
+        반환값: {"project_id": project_id, "text": text}
+        """
+        try:
+            result = self.gemini_stt.run_stt_and_return_text(audio_file_path, project_id)
+            os.remove(audio_file_path)
+            return result
+        except Exception as e:
+            logger.error(f"음성 파일 삭제 또는 STT 오류: {e}")
+            return {"project_id": project_id, "text": ""}
 
     def extract_core_tasks(self, state: TaskState) -> dict:
         try:
