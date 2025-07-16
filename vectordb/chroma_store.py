@@ -63,26 +63,38 @@ class ChromaDBManager:
                 span.set_attribute("db.operation", "upsert")
                 span.set_attribute("db.collection.name", self.collection_name)
                 span.set_attribute("document.id", doc_id)
-                return self._embed_and_store_internal(doc_id, summary, metadata)
+                
+                try:
+                    self.get_collection().delete(ids=[doc_id])
+                except:
+                    pass  # 기존 문서가 없으면 무시
+
+                embedding = self.embedding_function([summary])[0]
+                self.get_collection().add(
+                    ids=[doc_id], 
+                    documents=[summary], 
+                    embeddings=[embedding], 
+                    metadatas=[metadata]
+                )
+
+                print(f"문서 저장 완료: {doc_id}")
+                return doc_id
         else:
-            return self._embed_and_store_internal(doc_id, summary, metadata)
-    
-    def _embed_and_store_internal(self, doc_id, summary, metadata):
-        try:
-            self.get_collection().delete(ids=[doc_id])
-        except:
-            pass  # 기존 문서가 없으면 무시
+            try:
+                self.get_collection().delete(ids=[doc_id])
+            except:
+                pass  # 기존 문서가 없으면 무시
 
-        embedding = self.embedding_function([summary])[0]
-        self.get_collection().add(
-            ids=[doc_id], 
-            documents=[summary], 
-            embeddings=[embedding], 
-            metadatas=[metadata]
-        )
+            embedding = self.embedding_function([summary])[0]
+            self.get_collection().add(
+                ids=[doc_id], 
+                documents=[summary], 
+                embeddings=[embedding], 
+                metadatas=[metadata]
+            )
 
-        print(f"문서 저장 완료: {doc_id}")
-        return doc_id
+            print(f"문서 저장 완료: {doc_id}")
+            return doc_id
 
     def search(self, query_text, n_results=5, where_filter=None):
         if OTEL_AVAILABLE and self.tracer:
@@ -123,29 +135,38 @@ class ChromaDBManager:
                 span.set_attribute("db.operation", "delete")
                 span.set_attribute("db.collection.name", self.collection_name)
                 span.set_attribute("project.id", str(project_id))
-                return self._delete_by_project_internal(project_id, span)
+                
+                try:
+                    existing_docs = self.get_collection().get(where={"project_id": project_id})
+                    doc_count = len(existing_docs['ids']) if existing_docs['ids'] else 0
+                    span.set_attribute("documents.count", doc_count)
+
+                    if doc_count == 0:
+                        logger.info(f"프로젝트 {project_id}: 삭제할 ChromaDB 문서가 없습니다")
+                        return True
+
+                    self.get_collection().delete(where={"project_id": project_id})
+                    logger.info(f"프로젝트 {project_id} ChromaDB 데이터 삭제 완료 ({doc_count}개 문서)")
+                    return True
+
+                except Exception as e:
+                    logger.error(f"프로젝트 {project_id} ChromaDB 삭제 실패: {e}")
+                    span.set_attribute("error", True)
+                    span.set_attribute("error.message", str(e))
+                    return False
         else:
-            return self._delete_by_project_internal(project_id)
-    
-    def _delete_by_project_internal(self, project_id, span=None):
-        try:
-            existing_docs = self.get_collection().get(where={"project_id": project_id})
-            doc_count = len(existing_docs['ids']) if existing_docs['ids'] else 0
+            try:
+                existing_docs = self.get_collection().get(where={"project_id": project_id})
+                doc_count = len(existing_docs['ids']) if existing_docs['ids'] else 0
 
-            if span:
-                span.set_attribute("documents.count", doc_count)
+                if doc_count == 0:
+                    logger.info(f"프로젝트 {project_id}: 삭제할 ChromaDB 문서가 없습니다")
+                    return True
 
-            if doc_count == 0:
-                logger.info(f"프로젝트 {project_id}: 삭제할 ChromaDB 문서가 없습니다")
+                self.get_collection().delete(where={"project_id": project_id})
+                logger.info(f"프로젝트 {project_id} ChromaDB 데이터 삭제 완료 ({doc_count}개 문서)")
                 return True
 
-            self.get_collection().delete(where={"project_id": project_id})
-            logger.info(f"프로젝트 {project_id} ChromaDB 데이터 삭제 완료 ({doc_count}개 문서)")
-            return True
-
-        except Exception as e:
-            logger.error(f"프로젝트 {project_id} ChromaDB 삭제 실패: {e}")
-            if span:
-                span.set_attribute("error", True)
-                span.set_attribute("error.message", str(e))
-            return False
+            except Exception as e:
+                logger.error(f"프로젝트 {project_id} ChromaDB 삭제 실패: {e}")
+                return False
