@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, Response
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, Response, UploadFile, File, Form
 from contextlib import asynccontextmanager
 import logging
 import json
@@ -20,6 +20,11 @@ from .exceptions import (
     raise_project_id_mismatch
 )
 from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
+import tempfile
+import os
+from models.stt.stt import WhisperSTT
+from models.stt.stt import GeminiSTT
+from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_save_error
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +352,23 @@ async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_pa
         # 실패 콜백 전송
         await meeting_note_callback(project_id, "failed", response_data)
 
+
+@app.post("/ai/audio")
+async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...)):
+    """오디오 파일과 프로젝트 아이디를 받아 임시 파일로 저장"""
+    SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
+    import os
+    _, ext = os.path.splitext(file.filename.lower())
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
+    try:
+        # 업로드된 파일을 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+        return {"message": "audio_file_success"}
+    except Exception as e:
+        raise_audio_file_save_error(e)
 
 @app.get("/warmup", status_code=200)
 def warmup():
