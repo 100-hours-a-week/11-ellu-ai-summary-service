@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.3...v1.3.4) (2025-07-16)
+
+
+### Bug Fixes
+
+* release v1.3.4 ([20c2bca](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/20c2bca124988dcf6785e7d35f39bdf98427d20c))
+
 ## [1.3.3](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.2...v1.3.3) (2025-07-14)
 
 
