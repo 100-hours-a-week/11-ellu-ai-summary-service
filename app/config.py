@@ -19,7 +19,8 @@ CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+OPENAI_API_KEY_WHISPER = os.getenv("OPENAI_API_KEY_WHISPER")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 Hugging_FACE_KEY = os.getenv("HUGGINGFACE_API_KEY")
