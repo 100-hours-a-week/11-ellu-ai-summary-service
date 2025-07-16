@@ -68,13 +68,16 @@ class ChromaDBManager:
             return self._embed_and_store_internal(doc_id, summary, metadata)
     
     def _embed_and_store_internal(self, doc_id, summary, metadata):
+        # Ensure collection exists
+        collection = self.get_collection()
+        
         try:
-            self.get_collection().delete(ids=[doc_id])
+            collection.delete(ids=[doc_id])
         except:
             pass  # 기존 문서가 없으면 무시
 
         embedding = self.embedding_function([summary])[0]
-        self.get_collection().add(
+        collection.add(
             ids=[doc_id], 
             documents=[summary], 
             embeddings=[embedding], 
