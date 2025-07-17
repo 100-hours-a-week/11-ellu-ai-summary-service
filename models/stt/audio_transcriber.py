@@ -11,12 +11,13 @@ class GeminiSTT:
         self.api_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent"
 
     def run_stt_and_return_text(self, file_path: str, project_id: int) -> dict:
-        """주어진 오디오 파일 경로와 프로젝트 아이디를 받아 Gemini 2.5 Flash-Lite API로 변환하여 텍스트와 프로젝트 아이디 반환"""
+        """주어진 오디오 파일 경로와 프로젝트 아이디를 받아 텍스트와 프로젝트 아이디 반환"""
         try:
             logger.info(f"Transcribing audio file with Gemini: {file_path}")
             with open(file_path, "rb") as f:
                 audio_data = f.read()
             import base64
+            # base64로 인코딩하여 API에 반환
             audio_b64 = base64.b64encode(audio_data).decode("utf-8")
             payload = {
                 "contents": [

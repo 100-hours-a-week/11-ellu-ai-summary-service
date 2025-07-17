@@ -6,7 +6,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from .config import API_TITLE, API_DESCRIPTION, BE_URL
+from .config import API_TITLE, API_DESCRIPTION, BE_URL, AI_NOTES_URL
 from .middleware import setup_middleware
 from .dependencies import (
     chroma_dependency,
@@ -22,9 +22,8 @@ from .exceptions import (
 from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
 import tempfile
 import os
-# from models.stt.audio_transcriber import WhisperSTT
-from models.stt.audio_transcriber import GeminiSTT
 from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_save_error
+from models.stt.audio_transcriber import GeminiSTT
 
 logger = logging.getLogger(__name__)
 
@@ -357,10 +356,8 @@ async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_pa
         }
 
 @app.post("/ai/audio")
-async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...)):
-    """오디오 파일과 프로젝트 아이디를 받아 임시 파일로 저장"""
+async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...), background_tasks: BackgroundTasks = None):
     SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
-    import os
     _, ext = os.path.splitext(file.filename.lower())
     if ext not in SUPPORTED_EXTENSIONS:
         raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
@@ -369,9 +366,30 @@ async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...)
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             tmp.write(await file.read())
             tmp_path = tmp.name
+
+        # 성공 메시지 반환
+        background_tasks.add_task(process_audio_and_send_note, tmp_path, project_id)
         return {"message": "audio_file_success"}
     except Exception as e:
         raise_audio_file_save_error(e)
+
+async def process_audio_and_send_note(tmp_path, project_id):
+    try:
+        stt = GeminiSTT()
+        stt_result = stt.run_stt_and_return_text(tmp_path, project_id)
+        text = stt_result.get("text", "")
+        if text.strip():
+            note_payload = {
+                "project_id": project_id,
+                "content": text,
+                "position": ["all"]
+            }
+            async with httpx.AsyncClient() as client:
+                notes_url = AI_NOTES_URL
+                await client.post(notes_url, json=note_payload)
+        os.remove(tmp_path)
+    except Exception as e:
+        logger.error(f"Error for file {tmp_path}, project_id {project_id}: {e}", exc_info=True)
 
 @app.get("/warmup", status_code=200)
 def warmup():
