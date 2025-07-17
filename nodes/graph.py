@@ -14,51 +14,51 @@ class MeetingWorkflow:
         try:
             builder = StateGraph(TaskState)
 
-                # 노드 등록
-                builder.add_node("audio_to_text", self._audio_to_text_node)
-                builder.add_node("extract_core_tasks", self.task_handler.extract_core_tasks)
-                builder.add_node("generate_response", self.task_handler.generate_response)
-                builder.add_node("generate_AI_subtasks", self.task_handler.generate_AI_response)
-                builder.add_node("generate_BE_subtasks", self.task_handler.generate_BE_response)
-                builder.add_node("generate_FE_subtasks", self.task_handler.generate_FE_response)
-                builder.add_node("generate_Cloud_subtasks", self.task_handler.generate_Cloud_response)
-                builder.add_node("retry_node", self.task_handler.retry)
-                builder.add_node("judge_quality", self.task_handler.judge_quality_with_json_mode)
-                builder.add_node("determine_routes", self.task_handler.route_to_subtasks)
-                # 엣지 연결
-                builder.add_conditional_edges(
-                    START,
-                    self._start_branch,
-                    {
-                        "audio_to_text": "audio_to_text",
-                        "extract_core_tasks": "extract_core_tasks"
-                    }
-                )
-                builder.add_edge("audio_to_text", "extract_core_tasks")
-                builder.add_edge("extract_core_tasks", "generate_response")
-                builder.add_edge("generate_response", "judge_quality")
-                builder.add_edge("judge_quality", "determine_routes")
-                # 조건 분기
-                builder.add_conditional_edges(
-                    "determine_routes",
-                    self.task_handler.get_routes_from_state,
-                    {
-                        "generate_AI_subtasks": "generate_AI_subtasks",
-                        "generate_BE_subtasks": "generate_BE_subtasks",
-                        "generate_FE_subtasks": "generate_FE_subtasks",
-                        "generate_Cloud_subtasks": "generate_Cloud_subtasks",
-                        "retry_node": "retry_node" 
-                    }
-                )
-                builder.add_edge("retry_node", "generate_response")
+            # 노드 등록
+            builder.add_node("audio_to_text", self._audio_to_text_node)
+            builder.add_node("extract_core_tasks", self.task_handler.extract_core_tasks)
+            builder.add_node("generate_response", self.task_handler.generate_response)
+            builder.add_node("generate_AI_subtasks", self.task_handler.generate_AI_response)
+            builder.add_node("generate_BE_subtasks", self.task_handler.generate_BE_response)
+            builder.add_node("generate_FE_subtasks", self.task_handler.generate_FE_response)
+            builder.add_node("generate_Cloud_subtasks", self.task_handler.generate_Cloud_response)
+            builder.add_node("retry_node", self.task_handler.retry)
+            builder.add_node("judge_quality", self.task_handler.judge_quality_with_json_mode)
+            builder.add_node("determine_routes", self.task_handler.route_to_subtasks)
+            # 엣지 연결
+            builder.add_conditional_edges(
+                START,
+                self._start_branch,
+                {
+                    "audio_to_text": "audio_to_text",
+                    "extract_core_tasks": "extract_core_tasks"
+                }
+            )
+            builder.add_edge("audio_to_text", "extract_core_tasks")
+            builder.add_edge("extract_core_tasks", "generate_response")
+            builder.add_edge("generate_response", "judge_quality")
+            builder.add_edge("judge_quality", "determine_routes")
+            # 조건 분기
+            builder.add_conditional_edges(
+                "determine_routes",
+                self.task_handler.get_routes_from_state,
+                {
+                    "generate_AI_subtasks": "generate_AI_subtasks",
+                    "generate_BE_subtasks": "generate_BE_subtasks",
+                    "generate_FE_subtasks": "generate_FE_subtasks",
+                    "generate_Cloud_subtasks": "generate_Cloud_subtasks",
+                    "retry_node": "retry_node" 
+                }
+            )
+            builder.add_edge("retry_node", "generate_response")
 
-                # 포지션별 응답 후 종료
-                builder.add_edge("generate_AI_subtasks", END)
-                builder.add_edge("generate_BE_subtasks", END)
-                builder.add_edge("generate_FE_subtasks", END)
-                builder.add_edge("generate_Cloud_subtasks", END)
+            # 포지션별 응답 후 종료
+            builder.add_edge("generate_AI_subtasks", END)
+            builder.add_edge("generate_BE_subtasks", END)
+            builder.add_edge("generate_FE_subtasks", END)
+            builder.add_edge("generate_Cloud_subtasks", END)
 
-                return builder.compile()
+            return builder.compile()
         except Exception as e:
             logger.error(f"그래프 빌드 중 오류 발생: {str(e)}")
             raise

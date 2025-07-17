@@ -22,8 +22,8 @@ from .exceptions import (
 from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
 import tempfile
 import os
-from models.stt.stt import WhisperSTT
-from models.stt.stt import GeminiSTT
+# from models.stt.audio_transcriber import WhisperSTT
+from models.stt.audio_transcriber import GeminiSTT
 from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_save_error
 
 logger = logging.getLogger(__name__)
