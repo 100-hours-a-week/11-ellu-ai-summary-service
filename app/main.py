@@ -386,7 +386,7 @@ async def process_audio_and_send_note(tmp_path, project_id):
                 "position": ["all"]
             }
             async with httpx.AsyncClient() as client:
-                notes_url = AI_NOTES_URL
+                notes_url = AI_NOTES_URL.format(project_id=project_id)
                 await client.post(notes_url, json=note_payload)
                 logger.info("내부 NOTES API 호출 성공")
         os.remove(tmp_path)
