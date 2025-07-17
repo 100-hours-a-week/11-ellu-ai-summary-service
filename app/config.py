@@ -8,6 +8,7 @@ load_dotenv()
 # API 설정
 BE_URL = os.getenv("BE_URL", "http://localhost:8000")
 VLLM_URL = os.getenv("VLLM_URL", "http://vllm-server:8000")
+AI_NOTES_URL = os.getenv("AI_NOTES_URL", "http://localhost:8000//projects/{project_id}/note")
 
 # LLM 설정
 GPT_MODEL = "gpt-4o"
@@ -19,7 +20,6 @@ CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = os.getenv("CHROMA_PORT")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_API_KEY_WHISPER = os.getenv("OPENAI_API_KEY_WHISPER")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 MODEL_NAME = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
