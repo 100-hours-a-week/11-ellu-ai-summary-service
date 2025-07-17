@@ -366,6 +366,7 @@ async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...)
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             tmp.write(await file.read())
             tmp_path = tmp.name
+            logger.info(f"{project_id} 음성 파일 임시저장 성공")
 
         # 성공 메시지 반환
         background_tasks.add_task(process_audio_and_send_note, tmp_path, project_id)
@@ -387,7 +388,9 @@ async def process_audio_and_send_note(tmp_path, project_id):
             async with httpx.AsyncClient() as client:
                 notes_url = AI_NOTES_URL
                 await client.post(notes_url, json=note_payload)
+                logger.info("내부 NOTES API 호출 성공")
         os.remove(tmp_path)
+        logger.info(f"텍스트 변환 완료 후 {project_id} 임시저장된 음성 파일 삭제")
     except Exception as e:
         logger.error(f"Error for file {tmp_path}, project_id {project_id}: {e}", exc_info=True)
 
