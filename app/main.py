@@ -313,12 +313,14 @@ async def receive_meeting_note(
 
 
 async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_parser, db_engine):
+    logger.info(f"회의록 처리 시작 - project_id: {project_id}, content: {input}")
     try:
         # 회의록에서 태스크 추출
-        result = task_parser.run(
-            meeting_notes=input.content,
+        result = await task_parser.arun(
+            meeting_note=input.content,
             project_id=project_id,
             position=input.position,
+            audio_file_path="dummy_path"  # 오디오 파일 경로는 나중에 처리
         )
         # logger.info(f"result : {result}")
         # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
@@ -349,9 +351,10 @@ async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_pa
         
     except Exception as e:
         logger.error(f"회의록 DB 저장 처리 실패 - project_id: {project_id}, 오류: {e}")
-        # 실패 콜백 전송
-        await meeting_note_callback(project_id, "failed", response_data)
-
+        return {
+            "message": "failed",
+            "detail": []
+        }
 
 @app.post("/ai/audio")
 async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...)):
