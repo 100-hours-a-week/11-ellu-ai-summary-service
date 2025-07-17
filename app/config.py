@@ -8,7 +8,7 @@ load_dotenv()
 # API 설정
 BE_URL = os.getenv("BE_URL", "http://localhost:8000")
 VLLM_URL = os.getenv("VLLM_URL", "http://vllm-server:8000")
-AI_NOTES_URL = os.getenv("AI_NOTES_URL", "http://localhost:8000//projects/{project_id}/note")
+AI_NOTES_URL = os.getenv("AI_NOTES_URL", "http://localhost:8000/projects/{project_id}/note")
 
 # LLM 설정
 GPT_MODEL = "gpt-4o"
