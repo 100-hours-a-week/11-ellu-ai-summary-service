@@ -6,7 +6,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from .config import API_TITLE, API_DESCRIPTION, BE_URL, AI_NOTES_URL
+from .config import API_TITLE, API_DESCRIPTION, BE_URL
 from .middleware import setup_middleware
 from .dependencies import (
     chroma_dependency,
@@ -310,7 +310,6 @@ async def receive_meeting_note(
     return result
 
 
-
 async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_parser, db_engine):
     logger.info(f"회의록 처리 시작 - project_id: {project_id}, content: {input}")
     try:
@@ -356,43 +355,42 @@ async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_pa
         }
 
 @app.post("/ai/audio")
-async def audio_upload(file: UploadFile = File(...), project_id: int = Form(...), background_tasks: BackgroundTasks = None):
+async def audio_upload(
+    audio_file: UploadFile = File(...),
+    project_id: int = Form(...),
+    task_parser=Depends(meeting_workflow_dependency),
+    db_engine=Depends(database_dependency)
+):
     SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
-    _, ext = os.path.splitext(file.filename.lower())
+    _, ext = os.path.splitext(audio_file.filename.lower())
     if ext not in SUPPORTED_EXTENSIONS:
         raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
     try:
         # 업로드된 파일을 임시 파일로 저장
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            tmp.write(await file.read())
+            tmp.write(await audio_file.read())
             tmp_path = tmp.name
-            logger.info(f"{project_id} 음성 파일 임시저장 성공")
+            logger.info(f"{project_id} 프로젝트 음성 파일 임시저장 성공")
 
-        # 성공 메시지 반환
-        background_tasks.add_task(process_audio_and_send_note, tmp_path, project_id)
-        return {"message": "audio_file_success"}
-    except Exception as e:
-        raise_audio_file_save_error(e)
-
-async def process_audio_and_send_note(tmp_path, project_id):
-    try:
+        # STT 변환
         stt = GeminiSTT()
         stt_result = stt.run_stt_and_return_text(tmp_path, project_id)
         text = stt_result.get("text", "")
-        if text.strip():
-            note_payload = {
-                "project_id": project_id,
-                "content": text,
-                "position": ["all"]
-            }
-            async with httpx.AsyncClient() as client:
-                notes_url = AI_NOTES_URL.format(project_id=project_id)
-                await client.post(notes_url, json=note_payload)
-                logger.info("내부 NOTES API 호출 성공")
         os.remove(tmp_path)
-        logger.info(f"텍스트 변환 완료 후 {project_id} 임시저장된 음성 파일 삭제")
+        logger.info(f"텍스트 변환 완료 후 {project_id} 프로젝트 임시저장된 음성 파일 삭제")
+
+        # 테스크 추출 (process_meeting_note_sync 직접 호출)
+        meeting_note = MeetingNote(
+            project_id=project_id,
+            content=text,
+            position=["all"]
+        )
+        result = await process_meeting_note_sync(meeting_note, project_id, task_parser, db_engine)
+        logger.info(f"/ai/audio 최종 결과 반환: {result}")
+        return result
     except Exception as e:
-        logger.error(f"Error for file {tmp_path}, project_id {project_id}: {e}", exc_info=True)
+        logger.error(f"/ai/audio 처리 실패: {e}", exc_info=True)
+        raise_audio_file_save_error(e)
 
 @app.get("/warmup", status_code=200)
 def warmup():
