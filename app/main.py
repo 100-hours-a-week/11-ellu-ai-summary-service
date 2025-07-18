@@ -362,7 +362,6 @@ async def audio_upload(
 ):
     SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
     _, ext = os.path.splitext(audio_file.filename.lower())
-    _, ext = os.path.splitext(audio_file.filename.lower())
     if ext not in SUPPORTED_EXTENSIONS:
         raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
     try:
