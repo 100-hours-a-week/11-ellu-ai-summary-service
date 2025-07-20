@@ -69,6 +69,33 @@ class Generate_llm_response:
     async def run_model_and_parse(self, chat: list,where:str,task: str=None, position :str=None) -> dict:
         """LLM 모델 실행 및 결과 파싱"""
         try:
+            # vLLM URL이 비어있으면 OpenAI API 사용
+            if not self.vllm_url or self.vllm_url.strip() == "":
+                logger.info("vLLM URL이 비어있음, OpenAI API 사용")
+                from langchain_openai import ChatOpenAI
+                from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
+                
+                llm = ChatOpenAI(
+                    model=GPT_MODEL,
+                    temperature=TEMPERATURE,
+                    model_kwargs=MODEL_KWARGS
+                )
+                
+                from langchain_core.messages import SystemMessage, HumanMessage
+                messages = []
+                for msg in chat:
+                    if msg["role"] == "system":
+                        messages.append(SystemMessage(content=msg["content"]))
+                    elif msg["role"] == "user":
+                        messages.append(HumanMessage(content=msg["content"]))
+                
+                response = llm.invoke(messages)
+                content = response.content
+                logger.info(f"OpenAI API 생성한 content: {content}")
+                
+                return self.parse_response(content, where, task, position)
+            
+            # vLLM 서버 사용
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{self.vllm_url}/v1/chat/completions",
