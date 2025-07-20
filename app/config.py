@@ -48,5 +48,7 @@ S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 AWS_REGION = os.getenv("AWS_REGION")
 
 
-# retriever_type
-RETRIEVER_CLASS = "BasicRetriever"  # "BasicRetriever", "QueryEnhancedRetriever", "RoleEnhancedRetriever", "PsuedoExpertRetriever"
+# Pinecone 설정
+RETRIEVER_CLASS = "BasicRetriever" 
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "tech-blogs-en")
