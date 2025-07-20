@@ -1,8 +1,8 @@
 from langchain_openai import ChatOpenAI
 from prompts.prompt import MeetingPromptManager
 from schemas.task import TaskState
-# from models.wiki.retriever.retriever_manager import RetrieverManager
-from models.wiki.retriever.basic_retriever import BasicRetriever
+from models.wiki.basic_retriever import BasicRetriever
+from models.pinecone.hybrid_retriever import PineconeHybridRetriever
 from models.llm.task_model import Generate_llm_response
 from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
 import json
@@ -14,9 +14,20 @@ logger = logging.getLogger(__name__)
 
 class NodeHandler:
     def __init__(self):
-        self.prompt = MeetingPromptManager()
+        logger.info(" NodeHandler 초기화 시작...")
+        logger.info("Pinecone 초기화 시도 중...")
+        try:
+            self.pinecone_retriever = PineconeHybridRetriever()
+            self.prompt = MeetingPromptManager(pinecone_retriever=self.pinecone_retriever)
+            logger.info("Pinecone 하이브리드 검색기 초기화 성공!")
+        except Exception as e:
+            logger.error(f"Pinecone 초기화 실패, Wiki만 사용: {e}")
+            import traceback
+            logger.error(f"상세 오류: {traceback.format_exc()}")
+            self.pinecone_retriever = None
+            self.prompt = MeetingPromptManager()
+        
         self.wiki_retriever = BasicRetriever()
-        # self.wiki_retriever = RetrieverManager.create_retriever()
 
         self.task_model = Generate_llm_response()
         self.valid=valid_json()
@@ -25,7 +36,7 @@ class NodeHandler:
             temperature=TEMPERATURE,
             model_kwargs=MODEL_KWARGS
         )
-        logger.info("NodeHandler 초기화 완료")
+        logger.info(f"NodeHandler 초기화 완료 - Pinecone 사용: {self.pinecone_retriever is not None}")
 
     def extract_core_tasks(self, state: TaskState) -> dict:
         try:
@@ -67,19 +78,39 @@ class NodeHandler:
             for task in tasks:
                 logger.info(f"Processing task: {task}")
 
+                # Pinecone 검색 우선 사용
+                wiki_context = ""
                 try:
-                    wiki_result = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
-                    wiki_context = wiki_result.get(task, "") # 텍스트 추출
+                    if self.pinecone_retriever:
+                        # 1차 검색
+                        logger.info(f"Pinecone 검색 시작 for task '{task}', position '{key}'")
+                        pinecone_context = self.pinecone_retriever.get_enhanced_subtask_context(task, key)
+                        logger.info(f"Pinecone 결과: {len(pinecone_context.strip()) if pinecone_context else 0} 문자")
+                        
+                        if pinecone_context and len(pinecone_context.strip()) > 50:
+                            wiki_context = pinecone_context
+                            logger.info(f"Pinecone context 사용 for task '{task}': {len(wiki_context)} 문자")
+                            logger.info("=" * 50)
+                        else:
+                            # 2차 fall back
+                            logger.info(f"Pinecone context 부족, Wiki fallback 사용 for task '{task}'")
+                            wiki_result = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
+                            wiki_context = wiki_result.get(task, "")
+                    else:
+                        # Pinecone 없을시
+                        logger.info(f"Pinecone 없음, Wiki만 사용 for task '{task}'")
+                        wiki_result = self.wiki_retriever.retrieve_wiki_context(task, state['project_id'])
+                        wiki_context = wiki_result.get(task, "")
 
                     if wiki_context:
-                        logger.info(f"Retrieved wiki for Project ID {state['project_id']}: {len(wiki_context)} chars")
+                        logger.info(f"Context retrieved for task '{task}': {len(wiki_context)} chars")
                     else:
-                        logger.warning(f"No wiki content found for Project ID {state['project_id']}")
-                        wiki_context = ""  
+                        logger.warning(f"No context found for task '{task}', project_id: {state['project_id']}")
+                        wiki_context = f"{task}에 대한 {key} 관점에서의 구체적인 접근이 필요합니다."
                         
                 except Exception as e:
-                    logger.error(f"Wiki retrieval failed for Project ID {state['project_id']}: {e}")
-                    wiki_context = "" 
+                    logger.error(f"Context retrieval failed for task '{task}': {e}")
+                    wiki_context = f"{task}에 대한 {key} 관점에서의 접근이 필요합니다." 
                 # logger.info(f" wiki 내용: {wiki_result}")
                 role= self.prompt.subtask_position_role(key)
                 chat = self.prompt.get_subtask_prompts(key, task, wiki_context,role)
