@@ -11,7 +11,7 @@ VLLM_URL = os.getenv("VLLM_URL", "http://vllm-server:8000")
 
 # LLM 설정
 GPT_MODEL = "gpt-4o"
-TEMPERATURE = 0
+TEMPERATURE = 0.1
 MODEL_KWARGS = {"response_format": {"type": "json_object"}}
 
 # ChromaDB 설정

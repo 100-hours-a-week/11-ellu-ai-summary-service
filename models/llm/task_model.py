@@ -3,13 +3,13 @@ import json
 import re
 import logging
 import httpx
-
-
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_openai import ChatOpenAI
 from models.llm.json_fixer import JsonFixer
 from utils.valid import valid_json
 
 from prompts.prompt import MeetingPromptManager
-from app.config import VLLM_URL, TEMPERATURE, MODEL_KWARGS
+from app.config import VLLM_URL, TEMPERATURE, MODEL_KWARGS, GPT_MODEL
 # ────────────────────────────────────────────────────────
 # 설정 및 로깅
 # ────────────────────────────────────────────────────────
@@ -47,8 +47,12 @@ class Generate_llm_response:
                     if "세부 단계" in parsed:
                         return parsed
                     else:
-                        # 키-값 쌍을 값들만 추출하여 리스트로 변환
-                        values = list(parsed.values())
+                        values = []
+                        for v in parsed.values():
+                            if isinstance(v, list):
+                                values.extend(v)
+                            elif isinstance(v, str):
+                                values.append(v)
                         return {"세부 단계": values}
                 else:
                     return {"세부 단계": []}
@@ -56,10 +60,18 @@ class Generate_llm_response:
         except json.JSONDecodeError as e:
             if where == "main":
                 logger.error(f"Main JSON 파싱 오류: {str(e)}")
-                return self.json_fixer.fix_json(content)
+                try:
+                    return self.json_fixer.fix_json(content)
+                except Exception as fix_error:
+                    logger.error(f"JSON 수정 실패: {fix_error}")
+                    return {"AI": [], "BE": [], "FE": [], "CLOUD": []}
             else:
-                logger.error(f"Sub JSON 파싱 오류: {str(e)}")
-                return self.json_fixer.fix_subtask_json(content, position, task)
+                    logger.error(f"Sub JSON 파싱 오류: {str(e)}")
+                    try:
+                        return self.json_fixer.fix_subtask_json(content, position, task)
+                    except Exception as fix_error:
+                        logger.error(f"Sub JSON 수정 실패: {fix_error}")
+                        return {"세부 단계": []}
         except Exception as e:
             logger.error(f"응답 파싱 중 오류: {str(e)}")
             return {"error": str(e)}
@@ -72,8 +84,8 @@ class Generate_llm_response:
             # vLLM URL이 비어있으면 OpenAI API 사용
             if not self.vllm_url or self.vllm_url.strip() == "":
                 logger.info("vLLM URL이 비어있음, OpenAI API 사용")
-                from langchain_openai import ChatOpenAI
-                from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
+                
+                
                 
                 llm = ChatOpenAI(
                     model=GPT_MODEL,
@@ -81,7 +93,7 @@ class Generate_llm_response:
                     model_kwargs=MODEL_KWARGS
                 )
                 
-                from langchain_core.messages import SystemMessage, HumanMessage
+                
                 messages = []
                 for msg in chat:
                     if msg["role"] == "system":
