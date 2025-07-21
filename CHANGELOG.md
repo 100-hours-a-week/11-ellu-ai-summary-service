@@ -1,3 +1,15 @@
+# [1.6.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.5.1...v1.6.0) (2025-07-21)
+
+
+### Features
+
+* subtask 만들어진 답변 로깅 추가 ([abf1026](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/abf10263035f7d12cd7e4b9140cb16d638986150))
+
+
+### Performance Improvements
+
+* 오디오 API 디버깅 로그 추가 ([23b2896](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/23b28965c89bb7a3b2e7549697331acd42e49993))
+
 ## [1.5.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.5.0...v1.5.1) (2025-07-21)
 
 
