@@ -3,13 +3,13 @@ import json
 import re
 import logging
 import httpx
-
-
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_openai import ChatOpenAI
 from models.llm.json_fixer import JsonFixer
 from utils.valid import valid_json
 
 from prompts.prompt import MeetingPromptManager
-from app.config import VLLM_URL, TEMPERATURE, MODEL_KWARGS
+from app.config import VLLM_URL, TEMPERATURE, MODEL_KWARGS, GPT_MODEL
 # ────────────────────────────────────────────────────────
 # 설정 및 로깅
 # ────────────────────────────────────────────────────────
@@ -72,8 +72,8 @@ class Generate_llm_response:
             # vLLM URL이 비어있으면 OpenAI API 사용
             if not self.vllm_url or self.vllm_url.strip() == "":
                 logger.info("vLLM URL이 비어있음, OpenAI API 사용")
-                from langchain_openai import ChatOpenAI
-                from app.config import GPT_MODEL, TEMPERATURE, MODEL_KWARGS
+                
+                
                 
                 llm = ChatOpenAI(
                     model=GPT_MODEL,
@@ -81,7 +81,7 @@ class Generate_llm_response:
                     model_kwargs=MODEL_KWARGS
                 )
                 
-                from langchain_core.messages import SystemMessage, HumanMessage
+                
                 messages = []
                 for msg in chat:
                     if msg["role"] == "system":
