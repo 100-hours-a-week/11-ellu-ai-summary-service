@@ -81,32 +81,25 @@ class Json_Parsing_Prompts:
 
 🔹 **입력 데이터 특성:**
 - 특정 포지션의 작업을 세부 단계로 분해한 결과
-- 예상 형식: [{"position": "AI", "task": "모델 개발", "subtasks": ["데이터 수집", "모델 훈련", "성능 평가"]}]
+- 예상 형식: {{"세부 단계": ["작업1", "작업2", ...]}}
 
 🔹 **수정 규칙:**
 1. **구조 복원**: 배열과 객체 구조 정확히 복원
-2. **필수 키 보장**: position, task, subtasks 키 모두 포함
 3. **데이터 타입 정확성**: 
-   - position: 문자열 (AI/BE/FE/CLOUD)
-   - task: 문자열 (원본 작업명)
-   - subtasks: 문자열 배열
+
 4. **불필요한 요소 제거**: 설명문, 주석, 마크다운 제거
 
 
 
 🔹 **출력 요구사항:**
 - 유효한 JSON 배열만 반환
-- 각 객체는 position, task, subtasks 키 포함
+
 - 배열 내 모든 요소는 동일한 구조
 
 🔹 **예시:**
 
-출력 예시시: 
-        {
-          "position": "AI", 
-          "task": "모델개발", 
-          "subtasks": ["데이터수집", "모델훈련"]
-        }
+출력 예시: 
+        {{"세부 단계": ["작업1", "작업2", ...]}}
      """),
             
             HumanMessage(content=f"""다음 텍스트를 올바른 JSON 배열 형식으로 수정해주세요:
@@ -116,9 +109,7 @@ class Json_Parsing_Prompts:
 
 **요구사항:**
 1. 서브태스크 구조 JSON 배열로 수정
-2. 각 객체는 position, task, subtasks 키 포함
-3. position은 문자열, task는 문자열, subtasks는 문자열 배열
-4. 유효한 JSON 형식만 반환 (설명 없음)
+2. 유효한 JSON 형식만 반환 (설명 없음)
 
 수정된 JSON:""")
         ]

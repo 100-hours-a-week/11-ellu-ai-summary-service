@@ -1,18 +1,20 @@
 import json
 from typing import List, Dict, Any
 from langchain_core.messages import SystemMessage, HumanMessage
+import logging
 
+logger = logging.getLogger(__name__)
 
 class MeetingPromptManager:
     """회의록 분석을 위한 프롬프트 관리 클래스"""
     
-    def __init__(self, wiki_context: str = ""):
+    def __init__(self, wiki_context: str = "", pinecone_retriever=None):
         """
         Args:
             wiki_context: 세부 작업 생성 시 참고할 위키 문서나 컨텍스트
         """
+        self.pinecone_retriever = pinecone_retriever
         
-    
     def get_main_prompt(self) -> Dict[str, str]:
         """메인 작업 분류를 위한 시스템 프롬프트 반환"""
         return {
@@ -133,14 +135,12 @@ class MeetingPromptManager:
     4. **현실성**: 실제 개발 환경에서 수행되는 업무 수준
 
     🔹 **세부 작업 작성 규칙:**
-    • 동사로 시작하는 명확한 액션 아이템
-    
+    • 동사로 시작하는 간결한 액션 아이템 (10-15단어 이내)
     • 2-5개의 적절한 단계로 분해
-    •  충분히 구체적으로
+    • 핵심만 포함하고 부연설명은 최소화
     • 각 단계는 독립적으로 수행 가능해야 함
-    • 구체적인 세부 작업들을 {wiki_context}에 있는 내용을 참고하여 작성 
-      출력 형식을 반드시 지키세요 리스트 형식으로 답변
-      다른 말은 하지 말고 
+    • 구체적인 세부 작업들을 {wiki_context}에 있는 내용을 참고하여 작성
+    • 간결성을 우선시하고 불필요한 수식어나 설명 제거 
 
 🔹 **출력 형식 (반드시 준수):**
 JSON 형식에서 "세부 단계" 키에 배열 값을 반환:
@@ -162,63 +162,46 @@ JSON 형식에서 "세부 단계" 키에 배열 값을 반환:
 
     **요구사항:**
     1. 작업을 실제 개발 프로세스에 맞는 세부 단계로 분해
-    2. 세부 작업은 구체적이고 실행 가능하게 작성 (최대 5개)
+    2. 세부 작업은 간결하고 실행 가능하게 작성 (각 10-12단어, 최대 5개)
     3. 반드시 JSON 형식으로 출력: {{"세부 단계": ["작업1", "작업2", ...]}}
+    
+    **간결한 작성 예시:**
+    - 좋은 예: "모델 아키텍처 유형 선택", "API 엔드포인트 설계"
+    - 나쁜 예: "데이터 특성을 고려하여 적합한 모델 아키텍처 유형(예: CNN, RNN, Transformer 등)을 선택"
 
     JSON으로 응답해주세요:
                 """
             }
         ]
     def subtask_position_role(self, position: str): 
-        if position == "AI":
-            return """
-    - **AI/ML Engineer:**
-      - 데이터 수집, 전처리, 특성 엔지니어링 및 EDA 수행
-      - 머신러닝/딥러닝 모델 설계, 훈련, 평가 및 하이퍼파라미터 튜닝
-      - MLOps 파이프라인 구축 (모델 버전 관리, 자동화된 재훈련, 배포)
-      - 모델 성능 모니터링, A/B 테스트, 드리프트 감지
-      - TensorFlow, PyTorch, Scikit-learn, Kubeflow, MLflow 활용
-      - 데이터 파이프라인 설계 (Apache Airflow, Spark, Kafka)
-      - LLM 파인튜닝, RAG 시스템, 벡터 데이터베이스 구축
-            """
-        elif position == "BE":  # return 문 누락
-            return """
-    - **Backend Engineer:**
-      - RESTful/GraphQL API 설계 및 구현
-      - 마이크로서비스 아키텍처 설계 및 서비스 간 통신
-      - 데이터베이스 설계, 쿼리 최적화, 인덱싱 전략
-      - 캐싱 전략 (Redis, Memcached), 세션 관리
-      - 인증/인가 시스템 (JWT, OAuth2, RBAC)
-      - 비동기 처리 (메시지 큐, 이벤트 드리븐 아키텍처)
-      - 서버 성능 튜닝, 로드 밸런싱, 장애 처리
-      - Spring Boot, Express.js, Django, FastAPI 등 프레임워크 활용
-            """
-        elif position == "FE":  # return 문 누락
-            return """
-    - **Frontend Engineer:**
-      - 반응형 웹 디자인 및 크로스 브라우저 호환성 구현
-      - 컴포넌트 기반 아키텍처 설계 (재사용성, 확장성 고려)
-      - 상태 관리 (Redux, Zustand, Context API) 및 데이터 플로우 설계
-      - 웹 성능 최적화 (번들링, 코드 스플리팅, 지연 로딩)
-      - 사용자 경험(UX) 개선 (애니메이션, 인터랙션, 접근성)
-      - 테스트 자동화 (Jest, Cypress, Testing Library)
-      - React, Vue.js, Angular, TypeScript, Webpack, Vite 활용
-      - PWA, SEO 최적화, 웹 표준 준수
-            """
-        elif position == "CLOUD":
-            return """
-    - **Cloud/DevOps Engineer:**
-      - 클라우드 인프라 설계 및 구축 (AWS, GCP, Azure)
-      - 컨테이너화 (Docker) 및 오케스트레이션 (Kubernetes)
-      - CI/CD 파이프라인 구축 (Jenkins, GitHub Actions, GitLab CI)
-      - IaC (Infrastructure as Code) - Terraform, CloudFormation
-      - 모니터링 및 로깅 시스템 (Prometheus, Grafana, ELK Stack)
-      - 보안 정책 구현 (네트워크 보안, 시크릿 관리, 취약점 스캔)
-      - 서버리스 아키텍처 (Lambda, Cloud Functions) 설계
-      - 백업/복구 전략, 재해 복구 계획 수립
-            """
+        """포지션별 역할 정의"""
+        logger.info(f"역할 검색 요청: {position}, Pinecone 사용 가능: {self.pinecone_retriever is not None}")
+        
+        if self.pinecone_retriever:
+            try:
+                # Pinecone에서 역할 정의 검색
+                dynamic_role = self.pinecone_retriever.get_position_definition(position)
+                logger.info(f"Pinecone 역할 검색 결과: {len(dynamic_role) if dynamic_role else 0} 문자")
+                
+                if dynamic_role and len(dynamic_role) > 50:  # 유의미한 내용이 있으면
+                    logger.info(f"Pinecone 역할 정의 사용: {position}")
+                    return dynamic_role
+                else:
+                    logger.info(f"Pinecone 역할 정의 부족, 기본값 사용: {position}")
+            except Exception as e:
+                logger.info(f"Pinecone 역할 검색 실패: {e}")
         else:
-            return " "
+            logger.info(f"Pinecone retriever 없음, 기본값 사용: {position}")
+        
+        # Fallback: 간단한 기본값
+        logger.info(f"모든 검색 실패, 기본값 사용: {position}")
+        simple_roles = {
+            "AI": "AI/ML 모델 개발, 데이터 분석, 머신러닝 파이프라인 구축 전문가",
+            "BE": "서버 개발, API 설계, 데이터베이스 관리, 비즈니스 로직 구현 전문가", 
+            "FE": "사용자 인터페이스 개발, 웹/앱 화면 구현, 사용자 경험 개선 전문가",
+            "CLOUD": "인프라 구축, 배포 자동화, 모니터링, DevOps 전문가"
+        }
+        return simple_roles.get(position, f"{position} 포지션 전문가")
             
             
     def get_judge_prompts(self, meeting_note: str, main_task: Dict[str, List[str]]) -> List:

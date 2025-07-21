@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, Response
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, status, Response, UploadFile, File, Form
 from contextlib import asynccontextmanager
 import logging
 import json
@@ -20,6 +20,10 @@ from .exceptions import (
     raise_project_id_mismatch
 )
 from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
+import tempfile
+import os
+from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_save_error
+from models.stt.audio_transcriber import GeminiSTT
 
 logger = logging.getLogger(__name__)
 
@@ -164,48 +168,6 @@ async def process_web_and_callback(input: WikiInput, wiki_processor):
         await wiki_callback(input.project_id, "failed")
 
 
-async def process_meeting_note_and_callback(input: MeetingNote, project_id: int, task_parser, db_engine):
-    """회의록 처리 및 콜백 실행"""
-    try:
-        # 회의록에서 태스크 추출
-        result = await task_parser.arun(
-            meeting_notes=input.content,
-            project_id=project_id,
-            position=input.position,
-        )
-        # logger.info(f"result : {result}")
-        # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
-        response_data = { "message": "subtasks_created", "detail": []}
-        for position in result['project_position']:
-                response_data["detail"].extend(result[position])
-        
-        # 사용자 입출력 데이터 DB 저장
-        if db_engine:
-            try:
-                with db_engine.begin() as connection:
-                    query = text("""
-                        INSERT INTO user_io (user_input, user_output,project_id)
-                        VALUES (:user_input, :user_output, :project_id)
-                    """)
-                    connection.execute(query, {
-                        "user_input": input.content,
-                        "user_output": json.dumps(response_data, ensure_ascii=False),
-                        "project_id" : input.project_id
-                    })
-                    
-
-                    logger.info("user_io 테이블에 데이터 정상 삽입 완료")
-            except SQLAlchemyError as e:
-                logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
-        
-        # 성공 콜백 전송
-        await meeting_note_callback(project_id, "completed", response_data)
-        
-    except Exception as e:
-        logger.error(f"회의록 DB 저장장 처리 실패 - project_id: {project_id}, 오류: {e}")
-        # 실패 콜백 전송
-        await meeting_note_callback(project_id, "failed", response_data)
-
 # API endpoints
 @app.get("/", status_code=status.HTTP_200_OK)
 def read_root(chroma_client=Depends(chroma_dependency)):
@@ -335,7 +297,6 @@ async def delete_project_data(project_id: int):
 async def receive_meeting_note(
     project_id: int,
     input: MeetingNote,
-    background_tasks: BackgroundTasks,
     task_parser=Depends(meeting_workflow_dependency),
     db_engine=Depends(database_dependency)
 ):
@@ -343,19 +304,92 @@ async def receive_meeting_note(
     if project_id != input.project_id:
         raise_project_id_mismatch()
 
-    # 백그라운드에서 회의록 처리
-    background_tasks.add_task(
-        process_meeting_note_and_callback, 
-        input, 
-        project_id, 
-        task_parser, 
-        db_engine
-    )
-    
-    return {
-        "message": "회의록 처리가 시작되었습니다",
-        "project_id": project_id
-    }
+    # 동기적으로 처리하고 결과 반환
+    result = await process_meeting_note_sync(input, project_id, task_parser, db_engine)
+    logger.info(f"회의록 처리 완료 - project_id: {project_id}, result: {result}")
+    return result
+
+
+async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_parser, db_engine):
+    logger.info(f"회의록 처리 시작 - project_id: {project_id}, content: {input} from backend server")
+    try:
+        # 회의록에서 태스크 추출
+        result = await task_parser.arun(
+            meeting_notes=input.content,
+            project_id=project_id,
+            position=input.position
+        )
+        # logger.info(f"result : {result}")
+        # 응답 데이터 구성 - 모든 포지션의 태스크를 하나의 배열로 합치기
+        response_data = { "message": "subtasks_created", "detail": []}
+        for position in result['project_position']:
+            response_data["detail"].extend(result[position])
+        
+        # 사용자 입출력 데이터 DB 저장
+        if db_engine:
+            try:
+                with db_engine.begin() as connection:
+                    query = text("""
+                        INSERT INTO user_io (user_input, user_output,project_id)
+                        VALUES (:user_input, :user_output, :project_id)
+                    """)
+                    connection.execute(query, {
+                        "user_input": input.content,
+                        "user_output": json.dumps(response_data, ensure_ascii=False),
+                        "project_id" : input.project_id
+                    })
+                    
+
+                    logger.info("user_io 테이블에 데이터 정상 삽입 완료")
+            except SQLAlchemyError as e:
+                logger.error(f"user_io 테이블 삽입 실패: {str(e)}")
+        
+        return response_data
+        
+    except Exception as e:
+        logger.error(f"회의록 DB 저장 처리 실패 - project_id: {project_id}, 오류: {e}")
+        return {
+            "message": "failed",
+            "detail": []
+        }
+
+@app.post("/ai/audio")
+async def audio_upload(
+    audio_file: UploadFile = File(...),
+    project_id: int = Form(...),
+    task_parser=Depends(meeting_workflow_dependency),
+    db_engine=Depends(database_dependency)
+):
+    SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
+    _, ext = os.path.splitext(audio_file.filename.lower())
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
+    try:
+        # 업로드된 파일을 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(await audio_file.read())
+            tmp_path = tmp.name
+            logger.info(f"{project_id} 프로젝트 음성 파일 임시저장 성공")
+
+        # STT 변환
+        stt = GeminiSTT()
+        stt_result = stt.run_stt_and_return_text(tmp_path, project_id)
+        text = stt_result.get("text", "")
+        os.remove(tmp_path)
+        logger.info(f"텍스트 변환 완료 후 {project_id} 프로젝트 임시저장된 음성 파일 삭제")
+
+        # 테스크 추출 (process_meeting_note_sync 직접 호출)
+        meeting_note = MeetingNote(
+            project_id=project_id,
+            content=text,
+            position=["all"]
+        )
+        result = await process_meeting_note_sync(meeting_note, project_id, task_parser, db_engine)
+        logger.info(f"/ai/audio 최종 결과 반환: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"/ai/audio 처리 실패: {e}", exc_info=True)
+        raise_audio_file_save_error(e)
 
 @app.get("/warmup", status_code=200)
 def warmup():
