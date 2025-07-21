@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.5.0...v1.5.1) (2025-07-21)
+
+
+### Bug Fixes
+
+* 파싱 오류 수정 ([#227](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/227)) ([1cb3489](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/1cb348940064d94a61fe6077ecc60844b0d1877d))
+
 # [1.5.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.4.0...v1.5.0) (2025-07-21)
 
 
