@@ -117,6 +117,7 @@ class NodeHandler:
                 
 
                 response = await self.task_model.run_model_and_parse(chat, "sub",task,key)
+                logger.info(f" 만들어진 sub task 답변 : {response}")
                 if isinstance(response, dict):
                     values = list(response.values())
                     if values and all(isinstance(v, list) for v in values):
