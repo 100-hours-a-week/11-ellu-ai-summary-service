@@ -117,17 +117,14 @@ class NodeHandler:
                 
 
                 response = await self.task_model.run_model_and_parse(chat, "sub",task,key)
-                if  isinstance(response,dict):
-                    value_list=list(response.keys())
-                    response =response[value_list[0]]
-
-                if not isinstance(response,list):
-                    logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
-                    
-                    if len(response) > 1 :
-                        response = sum(response, []) # response 평탄화
+                if isinstance(response, dict):
+                    values = list(response.values())
+                    if values and all(isinstance(v, list) for v in values):
+                        response = sum(values, [])  # 모든 값들을 하나의 리스트로 합침
                     else:
-                        response =[]  
+                        response = []
+                else:
+                    response = []
                     
                 parsed=[{"position": key, "task": task, "subtasks": response}]
 
@@ -209,7 +206,7 @@ class NodeHandler:
 
                 logger.info(f"검증 통과 - 서브태스크 라우팅: {len(routes)}개 경로")
                 return {'routes': routes}
-        elif   state['count'] >= 0:
+        elif   state['count'] >= 1:
                 logger.warning(f"최대 재시도 횟수({state['count']}) 도달 - 강제 LLM 재생성")
                 try:
                     meeting_note = state["meeting_note"]
