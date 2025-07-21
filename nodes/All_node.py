@@ -117,7 +117,9 @@ class NodeHandler:
                 
 
                 response = await self.task_model.run_model_and_parse(chat, "sub",task,key)
-                response =response['세부 단계']
+                if  isinstance(response,dict):
+                    value_list=list(response.keys())
+                    response =response[value_list[0]]
 
                 if not isinstance(response,list):
                     logger.error(f"오류 :subtask의 양식이 정상적인 list 형태가 아닙니다. response : {response}")
