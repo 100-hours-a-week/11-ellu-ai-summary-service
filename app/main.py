@@ -360,24 +360,39 @@ async def audio_upload(
     task_parser=Depends(meeting_workflow_dependency),
     db_engine=Depends(database_dependency)
 ):
-    SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
-    _, ext = os.path.splitext(audio_file.filename.lower())
-    if ext not in SUPPORTED_EXTENSIONS:
-        raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
+    logger.info("[START] audio_upload")
     try:
-        # 업로드된 파일을 임시 파일로 저장
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            tmp.write(await audio_file.read())
-            tmp_path = tmp.name
-            logger.info(f"{project_id} 프로젝트 음성 파일 임시저장 성공")
+        if audio_file is None:
+            logger.error("No file uploaded!")
+            raise HTTPException(status_code=400, detail="No audio file")
 
+        logger.info(f"File received: {audio_file.filename}, content_type: {audio_file.content_type}")
+        
+        SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
+        _, ext = os.path.splitext(audio_file.filename.lower())
+        if ext not in SUPPORTED_EXTENSIONS:
+            raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
+        
+        logger.info(f"Extension {ext} is supported, proceeding with file read")
+        
+        # 업로드된 파일을 임시 파일로 저장
+        contents = await audio_file.read()
+        logger.info(f"Read {len(contents)} bytes from {audio_file.filename}")
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+            logger.info(f"Temp file written: {tmp_path}")
+
+        logger.info(f"Starting STT conversion for project {project_id}")
         # STT 변환
         stt = GeminiSTT()
         stt_result = stt.run_stt_and_return_text(tmp_path, project_id)
         text = stt_result.get("text", "")
         os.remove(tmp_path)
-        logger.info(f"텍스트 변환 완료 후 {project_id} 프로젝트 임시저장된 음성 파일 삭제")
+        logger.info(f"STT completed, text length: {len(text)}, temp file deleted")
 
+        logger.info(f"Starting task extraction for project {project_id}")
         # 테스크 추출 (process_meeting_note_sync 직접 호출)
         meeting_note = MeetingNote(
             project_id=project_id,
@@ -385,10 +400,10 @@ async def audio_upload(
             position=["all"]
         )
         result = await process_meeting_note_sync(meeting_note, project_id, task_parser, db_engine)
-        logger.info(f"/ai/audio 최종 결과 반환: {result}")
+        logger.info(f"Task extraction completed, returning result: {result}")
         return result
     except Exception as e:
-        logger.error(f"/ai/audio 처리 실패: {e}", exc_info=True)
+        logger.exception("Exception in /ai/audio")
         raise_audio_file_save_error(e)
 
 @app.get("/warmup", status_code=200)
