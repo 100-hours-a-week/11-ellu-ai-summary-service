@@ -1,3 +1,24 @@
+# [1.5.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.4.0...v1.5.0) (2025-07-21)
+
+
+### Bug Fixes
+
+* api 변경 ([c8cc313](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/c8cc313d7cdc3409da784b161ab4f81f4585f0eb))
+* api 변경 ([#208](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/208)) ([c5516d7](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/c5516d7b12a02c28855227aa2ab744ffce672982))
+* gemini api 연결 오류 수정 ([#209](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/209)) ([8e6cb89](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/8e6cb89f49e048de8a1ca4076b01144a4b4f563d))
+* gemini api 연결 오류 수정 ([#209](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/209)) ([#213](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/213)) ([6a2fbc4](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/6a2fbc42ec588357f05f8b3435f5934af974be1d))
+* indentation 오류 수정, module import 수정 ([59585d9](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/59585d9cc037f8eebe85c108c89379587ee3f4df))
+* minor change in processing metting note ([752e46c](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/752e46c65079bcfa5bc747ef561d264628732c3f))
+* openai fallback([#222](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/222)) ([7c49b21](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/7c49b21716ca2158f94910be7afa2fac8ef52498))
+* 회의록 업로드 기능 api 수정 ([833c50d](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/833c50dbc981ee84750a65ce1123f46a0f7cdc1e))
+
+
+### Features
+
+* pinecone subtext 검색 구현([#215](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/215)) ([e16706a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/e16706af3760c1d4a72459e1d19a3b7f65f11559))
+* 디비적용 및 fallback 구현([#218](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/218)) ([57c50b3](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/57c50b37f1513cc605556398ead6b7aa97a4d2fd))
+* 역할 검색([#183](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/183)) ([d95d83e](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/d95d83e16a070059242ed61d0fcd1166226ba058))
+
 # [1.4.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.3.4...v1.4.0) (2025-07-16)
 
 
