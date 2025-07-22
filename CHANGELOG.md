@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.7.0...v1.7.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* Exception handler ([da4f737](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/da4f7379ac2126afc57f0614cb6f66a2693b7a38))
+
 # [1.7.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.6.1...v1.7.0) (2025-07-22)
 
 
