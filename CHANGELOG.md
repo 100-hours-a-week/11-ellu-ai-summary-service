@@ -1,3 +1,21 @@
+# [1.7.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.6.1...v1.7.0) (2025-07-22)
+
+
+### Bug Fixes
+
+* exception handler ([3e06f0b](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/3e06f0b0ca18b7ebd43c04c94eb06ad08c173740))
+* exception handler 콜 위치 수정 ([94fda03](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/94fda0399d46cc3ea60d1727ad36e4741a9ca831))
+
+
+### Features
+
+* subtask 만들어진 답변 로깅 추가 ([a2d165b](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/a2d165b245498d459cef0bda8f833070b96d8ea4))
+
+
+### Performance Improvements
+
+* 오디오 API 디버깅 로그 추가 ([d5b0edb](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/d5b0edb84079a8994fdbd3f3dfc59cab6660ae98))
+
 ## [1.6.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.6.0...v1.6.1) (2025-07-22)
 
 
