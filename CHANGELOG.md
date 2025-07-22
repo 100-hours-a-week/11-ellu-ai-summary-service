@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.6.0...v1.6.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* exception handler ([bb9de97](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/bb9de97c4de4dc1830205a76e2f75f7d54afbbef))
+
 # [1.6.0](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.5.1...v1.6.0) (2025-07-21)
 
 
