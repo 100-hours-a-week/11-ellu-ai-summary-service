@@ -27,10 +27,7 @@ from models.stt.audio_transcriber import GeminiSTT
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    logger.error(f"[422] Request validation failed: {exc}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +54,10 @@ app = FastAPI(
 # Setup middleware
 setup_middleware(app)
 
-
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logger.error(f"[422] Request validation failed: {exc}")
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 def detect_url_type(url: str) -> str:
     if "/wiki" in url and "github.com" in url:
