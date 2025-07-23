@@ -1,3 +1,12 @@
+## [1.7.2](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.7.1...v1.7.2) (2025-07-23)
+
+
+### Bug Fixes
+
+* filename 오류 수정 ([#237](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/237)) ([8f92700](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/8f92700c35aab1c6dca9020d3888b45aeaaf70e7))
+* S3 URL로 오디오 파일 로드 ([#234](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/234)) ([d08109a](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/d08109a7e30e1119faa75f82b766fcd8ce23ddf8))
+* suffix 수정 ([#234](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/issues/234)) ([11b7a64](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/commit/11b7a646b15c63e463752835b6fb225535ae1f47))
+
 ## [1.7.1](https://github.com/100-hours-a-week/11-ellu-ai-summary-service/compare/v1.7.0...v1.7.1) (2025-07-22)
 
 
