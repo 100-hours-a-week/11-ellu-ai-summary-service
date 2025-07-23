@@ -22,7 +22,7 @@ from .exceptions import (
 from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
 import tempfile
 import os
-from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_download_error
+from app.exceptions import raise_audio_file_download_error
 from models.stt.audio_transcriber import GeminiSTT
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -373,18 +373,9 @@ async def audio_upload(
             if response.status_code != 200:
                 raise_audio_file_download_error(audio_file)
             audio_bytes = response.content
-
-        logger.info(f"File received: {audio_file.filename}, content_type: {audio_file.content_type}")
-        
-        SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".mp4", ".aac", ".flac", ".m4a", ".mpga", ".mpeg", ".opus", ".pcm", ".webm"}
-        _, ext = os.path.splitext(audio_file.filename.lower())
-        if ext not in SUPPORTED_EXTENSIONS:
-            raise_unsupported_audio_extension(ext, SUPPORTED_EXTENSIONS)
-        
-        logger.info(f"Extension {ext} is supported, proceeding with file read")
         
         # 임시 파일로 저장
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
             tmp.write(audio_bytes)
             tmp_path = tmp.name
             logger.info(f"Temp file written: {tmp_path}")
