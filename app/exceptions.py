@@ -48,12 +48,11 @@ def raise_unsupported_audio_extension(ext, supported_exts):
         detail=f"지원하지 않는 오디오 파일 형식입니다: {ext}. 지원 형식: {', '.join(supported_exts)}"
     )
 
-def raise_audio_file_save_error(e):
-    """오디오 파일 임시 저장 실패 예외"""
-    logger.error(f"오디오 파일 저장 실패: {e}")
+def raise_audio_file_download_error(audio_file: str):
+    """S3 URL 오디오 파일 다운로드 실패 예외"""
     raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=f"오디오 파일 저장 중 오류가 발생했습니다: {str(e)}"
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Failed to download audio file from S3: {audio_file}"
     )
 
 # Global exception handler
