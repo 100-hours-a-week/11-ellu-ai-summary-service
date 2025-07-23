@@ -22,7 +22,7 @@ from .exceptions import (
 from schemas.main_schema import WikiInput, MeetingNote, InsertInfo
 import tempfile
 import os
-from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_save_error
+from app.exceptions import raise_unsupported_audio_extension, raise_audio_file_download_error
 from models.stt.audio_transcriber import GeminiSTT
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -360,16 +360,19 @@ async def process_meeting_note_sync(input: MeetingNote, project_id: int, task_pa
 
 @app.post("/ai/audio")
 async def audio_upload(
-    audio_file: UploadFile = File(...),
+    audio_file: str = Form(...),
     project_id: int = Form(...),
     task_parser=Depends(meeting_workflow_dependency),
     db_engine=Depends(database_dependency)
 ):
-    logger.info("[START] audio_upload")
+    logger.info("[START] audio_download")
     try:
-        if audio_file is None:
-            logger.error("No file uploaded!")
-            raise HTTPException(status_code=400, detail="No audio file")
+        # S3 URL에서 파일 다운로드
+        async with httpx.AsyncClient() as client:
+            response = await client.get(audio_file)
+            if response.status_code != 200:
+                raise_audio_file_download_error(audio_file)
+            audio_bytes = response.content
 
         logger.info(f"File received: {audio_file.filename}, content_type: {audio_file.content_type}")
         
@@ -380,12 +383,9 @@ async def audio_upload(
         
         logger.info(f"Extension {ext} is supported, proceeding with file read")
         
-        # 업로드된 파일을 임시 파일로 저장
-        contents = await audio_file.read()
-        logger.info(f"Read {len(contents)} bytes from {audio_file.filename}")
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            tmp.write(contents)
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            tmp.write(audio_bytes)
             tmp_path = tmp.name
             logger.info(f"Temp file written: {tmp_path}")
 
@@ -409,7 +409,6 @@ async def audio_upload(
         return result
     except Exception as e:
         logger.exception("Exception in /ai/audio")
-        raise_audio_file_save_error(e)
 
 @app.get("/warmup", status_code=200)
 def warmup():
