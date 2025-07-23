@@ -384,7 +384,7 @@ async def audio_upload(
         logger.info(f"Extension {ext} is supported, proceeding with file read")
         
         # 임시 파일로 저장
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             tmp.write(audio_bytes)
             tmp_path = tmp.name
             logger.info(f"Temp file written: {tmp_path}")
